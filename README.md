@@ -24,6 +24,10 @@ They're all mentioned inside the notebook, I use many, but I wanted to give part
 
 ![Genre Word Cloud](img/genre-word-cloud.png)
 
+## Hey, the machine learning examples don't perform well...
+
+ML algorithms are limited by the quality of the input data. Sadly, the major downside of this project is that most people (myself included) haven't read enough books to make even considering these techniques a sensible choice. This is for learning and playing with code more than anything, don't expect this to provide you with uncanny predictions into your future reading habits!
+
 ## Licence
 
 This is licenced under CC licencing. Feel free to raise issues for suggestions, bug fixes, etc., and feel free to fork and modify your own version, just please refer back to here if you do.
