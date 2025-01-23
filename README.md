@@ -15,6 +15,9 @@ The notebook uses a variety of libraries, all mentioned within. Special shoutout
 
 Here's a taste of what you can create:
 
+![Book Titles Word Cloud](img/top_genres_pages.gif)
+*Animated reading over time!*
+
 ![Book Titles Word Cloud](img/book-titles-word-cloud.png)
 *Your reading journey in a cloud!*
 
