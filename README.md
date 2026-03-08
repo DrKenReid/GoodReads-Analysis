@@ -1,44 +1,38 @@
-# 📚 GoodReads Analysis 📊
+# GoodReads Data Analysis
 
-## 🌟 Introduction
-Realized your GitHub was looking a bit sparse? Same here! 😅 This project is a sampler of various Data Science skills, from data preprocessing to plot creation, machine learning, and analysis. And what better dataset to use than your own GoodReads data? 📖
+A comprehensive analysis of personal reading habits using data exported from [GoodReads](https://www.goodreads.com/). Demonstrates data wrangling, statistical visualisation, NLP-based sentiment analysis, and predictive modelling with classical ML and neural networks.
 
-## 🤔 How can I use my own data?
-1. Head to the top of the notebook for step-by-step instructions.
-2. You'll need a GoodReads account with some reading history.
-3. For best results, use the GoodReads enhancement tool (more on that below).
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/DrKenReid/GoodReads-Analysis/blob/main/Goodreads_Analysis.ipynb)
 
-## 🛠️ Libraries and Tools
-The notebook uses a variety of libraries, all mentioned within. Special shoutout to [Enhance-GoodReads-Export](https://github.com/PaulKlinger/Enhance-GoodReads-Export) for unlocking genres and more accurate reading dates! 🎉
+## Techniques Demonstrated
 
-## 📊 Example Plots
+| Category | Details |
+|---|---|
+| **Data Wrangling** | Pandas preprocessing, date parsing, genre standardisation |
+| **Visualisation** | Seaborn, Matplotlib, Plotly, animated bar-chart races |
+| **NLP** | NLTK VADER sentiment analysis, word clouds, stopword filtering |
+| **Classical ML** | Linear & polynomial regression, Random Forest (scikit-learn pipelines) |
+| **Deep Learning** | Keras feed-forward NN, PyTorch classification with early stopping |
+| **Best Practices** | Proper train/test splits, no data leakage, centralised theming |
 
-Here's a taste of what you can create:
+## Using Your Own Data
 
-![Book Titles Word Cloud](img/top_genres_pages.gif)
-*Animated reading over time!*
+1. Export your GoodReads library via **My Books → Import/Export** (bottom-left of profile).
+2. *(Recommended)* Enrich the CSV with [Enhance-GoodReads-Export](https://github.com/PaulKlinger/Enhance-GoodReads-Export) to add genre tags and more accurate reading dates.
+3. Open the notebook in Colab, uncomment the Google Drive mount cell, and point it at your CSV.
 
-![Book Titles Word Cloud](img/book-titles-word-cloud.png)
-*Your reading journey in a cloud!*
+## Example Outputs
 
-![Review Length vs Rating](img/review-length-vs-rating.png)
-*Do longer reviews mean better ratings?*
+| | |
+|---|---|
+| ![Animated Genre Race](img/top_genres_pages.gif) | ![Book Titles Word Cloud](img/book-titles-word-cloud.png) |
+| ![Review Length vs Rating](img/review-length-vs-rating.png) | ![Genre Ratings](img/genre-ratings.png) |
+| ![Reading by Week](img/reading-by-week.png) | ![Genre Word Cloud](img/genre-word-cloud.png) |
 
-![Genre Rating](img/genre-ratings.png)
-*Which genres do you rate the highest?*
+## A Note on Predictions
 
-![Reading by Week](img/reading-by-week.png)
-*Your reading habits throughout the year*
+The ML models here yield modest accuracy — by design. Book ratings and reading speed are driven more by personal context (mood, genre engagement, life circumstances) than by metadata like page count or average rating. The low R² scores are themselves a useful finding: they illustrate why recommendation systems need collaborative filtering or deeper content features to work well.
 
-![Genre Word Cloud](img/genre-word-cloud.png)
-*The genres that dominate your bookshelf*
+## License
 
-## 🤖 Machine Learning Disclaimer
-Don't expect mind-blowing predictions - the algorithms are limited by input data quality. Most of us (myself included) haven't read enough books to make these techniques truly shine. This project is more about learning and playing with code than uncanny predictions of future reading habits!
-
-## 📜 License
-This project is under CC licensing. Feel free to:
-- 🐛 Raise issues for suggestions or bug fixes
-- 🍴 Fork and modify your own version (just please link back to this repo)
-
-Happy reading and analyzing! 📚📊🎉
+This project is licensed under [CC BY 4.0](LICENSE). Issues and forks welcome — just link back to this repo.
