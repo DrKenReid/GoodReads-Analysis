@@ -1,0 +1,14 @@
+gender-guesser
+joblib
+keras
+matplotlib
+names-dataset
+nltk
+numpy
+pandas
+plotly
+scikit-learn
+seaborn
+tabulate
+torch
+wordcloud
