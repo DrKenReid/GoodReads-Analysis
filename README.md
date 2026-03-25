@@ -33,6 +33,10 @@ A comprehensive analysis of personal reading habits using data exported from [Go
 
 The ML models here yield modest accuracy — by design. Book ratings and reading speed are driven more by personal context (mood, genre engagement, life circumstances) than by metadata like page count or average rating. The low R² scores are themselves a useful finding: they illustrate why recommendation systems need collaborative filtering or deeper content features to work well.
 
+## Related
+
+- [GoodReads-Quotes-PDF](https://github.com/DrKenReid/GoodReads-Quotes-PDF) — export and visualise your highlighted GoodReads quotes as a formatted PDF
+
 ## License
 
 This project is licensed under [CC BY 4.0](LICENSE). Issues and forks welcome — just link back to this repo.
