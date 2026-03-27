@@ -284,18 +284,33 @@ def _clean_genre_label(label: str) -> str:
     return _GENRE_MERGES.get(label, label)
 
 
+# Labels to skip (not actual genres)
+_GENRE_SKIP = {
+    "audio", "audiobook", "audiobooks", "ebook", "ebooks", "kindle",
+    "read", "currently reading", "to read", "owned", "favorites",
+    "to buy", "books i own", "default", "library", "own", "owned books",
+    "book club", "bookclub", "borrowed", "wish list", "wishlist",
+    "paperback", "hardcover", "series", "novels", "books",
+    "fiction", "nonfiction",  # too generic on their own
+    "",
+}
+
+
 def genre_breakdown(df: pd.DataFrame) -> pd.DataFrame:
     """Genre breakdown — prefers enhanced CSV 'genres' column (semicolon-delimited),
     then tries genre_1/genre_2/genre_3 columns, falls back to Bookshelves."""
     read = _read_books(df)
 
-    # 1. Try 'genres' column from Enhance-GoodReads-Export (semicolon-delimited)
+    # 1. Try 'genres' column from Enhance-GoodReads-Export
     if "genres" in read.columns:
         genre_counts = {}
         for val in read["genres"].dropna():
-            for g in str(val).split(";"):
+            # Handle multiple delimiters: semicolons, pipes, commas
+            import re
+            parts = re.split(r'[;|,]', str(val))
+            for g in parts:
                 g = _clean_genre_label(g)
-                if g and len(g) > 1:
+                if g and len(g) > 1 and g.lower() not in _GENRE_SKIP:
                     genre_counts[g] = genre_counts.get(g, 0) + 1
         if genre_counts:
             result = pd.DataFrame(list(genre_counts.items()), columns=["Genre", "Count"])
@@ -308,7 +323,7 @@ def genre_breakdown(df: pd.DataFrame) -> pd.DataFrame:
         for col in genre_cols:
             for val in read[col].dropna():
                 g = _clean_genre_label(str(val))
-                if g and len(g) > 1:
+                if g and len(g) > 1 and g.lower() not in _GENRE_SKIP:
                     genre_counts[g] = genre_counts.get(g, 0) + 1
         if genre_counts:
             result = pd.DataFrame(list(genre_counts.items()), columns=["Genre", "Count"])
@@ -318,14 +333,11 @@ def genre_breakdown(df: pd.DataFrame) -> pd.DataFrame:
     if "_shelves" not in read.columns:
         return pd.DataFrame()
 
-    skip = {"read", "currently-reading", "to-read", "owned", "favorites",
-            "to-buy", "books-i-own", "default", "kindle", "ebook", "ebooks",
-            "audiobook", "audiobooks", "library", "own", "owned-books", ""}
     genre_counts = {}
     for shelves in read["_shelves"]:
         for s in shelves:
-            if s not in skip and len(s) > 1:
-                cleaned = _clean_genre_label(s)
+            cleaned = _clean_genre_label(s)
+            if cleaned and len(cleaned) > 1 and cleaned.lower() not in _GENRE_SKIP:
                 genre_counts[cleaned] = genre_counts.get(cleaned, 0) + 1
 
     if not genre_counts:
