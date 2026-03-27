@@ -684,15 +684,20 @@ with tab_quotes:
         qm4.metric("📏 Avg Words/Quote", f"{qs['avg_length']}")
 
         if qs["most_popular_quote"]:
-            st.markdown("### 🏆 Most Popular Quote")
-            pop_quote = qs["most_popular_quote"][:300]
-            pop_author = qs["most_popular_author"]
-            st.markdown(f"""
-            <div class="quote-card">
-                <div class="quote-text">"{pop_quote}"</div>
-                <div class="quote-attr">— {pop_author} (popularity: {qs['most_popular_score']:,})</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown("### 🏆 Top 5 Most Popular Quotes")
+            if "Popularity" in qdf.columns:
+                top_pop = qdf.dropna(subset=["Quote"]).nlargest(5, "Popularity")
+                for i, (_, row) in enumerate(top_pop.iterrows(), 1):
+                    q = str(row.get("Quote", ""))[:300]
+                    a = str(row.get("Author", ""))
+                    pop = int(row.get("Popularity", 0))
+                    st.markdown(f"""
+                    <div class="quote-card">
+                        <div style="color:#f39c12;font-size:12px;margin-bottom:4px;">#{i} · Popularity: {pop:,}</div>
+                        <div class="quote-text">"{q}"</div>
+                        <div class="quote-attr">— {a}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
         # ═══════════════════════════════════════════
         # RANDOM QUOTE
@@ -748,36 +753,33 @@ with tab_quotes:
         # ═══════════════════════════════════════════
         st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
         st.markdown("## 📥 Select & Export Quotes")
-        st.caption("Filter, select the quotes you want, customize the look, then download.")
+        st.caption("Filter and select quotes, customize the output, then download.")
 
-        # ── Theme & Style Options ──
-        style_col1, style_col2 = st.columns(2)
-        with style_col1:
-            export_title = st.text_input("Export title", value="My GoodReads Quotes", key="export_title")
-            theme_name = st.selectbox("Theme preset", list(THEMES.keys()), key="export_theme")
-            accent_color = st.color_picker("Accent color", value=THEMES[theme_name]["accent"], key="export_accent")
-        with style_col2:
-            font_style = st.radio("Font style", ["Serif", "Sans-Serif"], horizontal=True, key="export_font")
-            include_tags = st.checkbox("Include tags", value=True, key="export_tags")
-            include_books = st.checkbox("Include book titles", value=True, key="export_books")
-
-        # Build theme
-        export_theme = THEMES[theme_name].copy()
-        export_theme["accent"] = accent_color
-
-        st.markdown("---")
-
-        # ── Filter & Select ──
-        fcol1, fcol2, fcol3 = st.columns(3)
+        # ── Filter ──
+        fcol1, fcol2 = st.columns(2)
         with fcol1:
             all_authors = sorted(qdf["Author"].dropna().unique().tolist()) if "Author" in qdf.columns else []
             filter_authors = st.multiselect("Filter by Author", all_authors, key="q_filter_author")
         with fcol2:
             all_books = sorted(qdf["Book"].dropna().unique().tolist()) if "Book" in qdf.columns else []
             filter_books = st.multiselect("Filter by Book", all_books, key="q_filter_book")
+
+        fcol3, fcol4 = st.columns(2)
         with fcol3:
             search_text = st.text_input("Search quotes", key="q_search")
+        with fcol4:
+            # Quote length filter
+            if "Quote" in qdf.columns:
+                qdf["_word_count"] = qdf["Quote"].fillna("").apply(lambda x: len(str(x).split()))
+                max_words = int(qdf["_word_count"].max()) if len(qdf) > 0 else 500
+                min_len, max_len = st.slider(
+                    "Quote length (words)", 0, min(max_words, 1000),
+                    (0, min(max_words, 1000)), key="q_length_filter"
+                )
+            else:
+                min_len, max_len = 0, 99999
 
+        # Apply filters
         filtered = qdf.copy()
         if filter_authors:
             filtered = filtered[filtered["Author"].isin(filter_authors)]
@@ -790,6 +792,8 @@ with tab_quotes:
             if "Tags" in filtered.columns:
                 mask = mask | filtered["Tags"].astype(str).str.contains(search_text, case=False, na=False)
             filtered = filtered[mask]
+        if "_word_count" in filtered.columns:
+            filtered = filtered[(filtered["_word_count"] >= min_len) & (filtered["_word_count"] <= max_len)]
 
         # Select all / deselect all
         sel_col1, sel_col2, sel_col3 = st.columns([1, 1, 4])
@@ -836,12 +840,62 @@ with tab_quotes:
 
         st.markdown("---")
 
-        # ── Download ──
+        # ── Output Customization (below selection) ──
+        st.markdown("### 🎨 Output Customization")
+
+        cust_col1, cust_col2, cust_col3 = st.columns(3)
+        with cust_col1:
+            export_title = st.text_input("Export title", value="My GoodReads Quotes", key="export_title")
+            theme_name = st.selectbox("Theme preset", list(THEMES.keys()), key="export_theme")
+        with cust_col2:
+            accent_color = st.color_picker("Accent color", value=THEMES[theme_name]["accent"], key="export_accent")
+            font_style = st.radio("Font style", ["Serif", "Sans-Serif"], horizontal=True, key="export_font")
+        with cust_col3:
+            include_tags = st.checkbox("Include tags", value=True, key="export_tags")
+            include_books = st.checkbox("Include book titles", value=True, key="export_books")
+            sort_order = st.selectbox("Sort quotes by", [
+                "Original order",
+                "Author (A-Z)",
+                "Author (Z-A)",
+                "Book title (A-Z)",
+                "Book title (Z-A)",
+                "Shortest first",
+                "Longest first",
+                "Most popular first",
+            ], key="export_sort")
+
+        # Build theme
+        export_theme = THEMES[theme_name].copy()
+        export_theme["accent"] = accent_color
+
+        st.markdown("---")
+
+        # ── Build export DataFrame ──
         selected_indices = st.session_state.get("q_selected", set())
         export_all = st.checkbox("Export ALL quotes (ignore selection)", value=False, key="export_all")
 
         if export_all or not selected_indices:
-            export_df = qdf
+            export_df = qdf.copy()
+            st.markdown(f"**📦 Exporting all {len(export_df)} quotes**")
+        else:
+            export_df = qdf.loc[qdf.index.isin(selected_indices)].copy()
+            st.markdown(f"**📦 Exporting {len(export_df)} selected quotes** (out of {len(qdf)} total)")
+
+        # Apply sort order
+        if sort_order == "Author (A-Z)" and "Author" in export_df.columns:
+            export_df = export_df.sort_values("Author", key=lambda s: s.str.split().str[-1].str.lower())
+        elif sort_order == "Author (Z-A)" and "Author" in export_df.columns:
+            export_df = export_df.sort_values("Author", key=lambda s: s.str.split().str[-1].str.lower(), ascending=False)
+        elif sort_order == "Book title (A-Z)" and "Book" in export_df.columns:
+            export_df = export_df.sort_values("Book", key=lambda s: s.str.lower())
+        elif sort_order == "Book title (Z-A)" and "Book" in export_df.columns:
+            export_df = export_df.sort_values("Book", key=lambda s: s.str.lower(), ascending=False)
+        elif sort_order == "Shortest first" and "Quote" in export_df.columns:
+            export_df = export_df.assign(_len=export_df["Quote"].str.len()).sort_values("_len").drop(columns=["_len"])
+        elif sort_order == "Longest first" and "Quote" in export_df.columns:
+            export_df = export_df.assign(_len=export_df["Quote"].str.len()).sort_values("_len", ascending=False).drop(columns=["_len"])
+        elif sort_order == "Most popular first" and "Popularity" in export_df.columns:
+            export_df = export_df.sort_values("Popularity", ascending=False)
             st.markdown(f"**📦 Exporting all {len(export_df)} quotes**")
         else:
             export_df = qdf.loc[qdf.index.isin(selected_indices)]
