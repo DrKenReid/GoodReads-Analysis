@@ -93,6 +93,15 @@ if df is None:
 
 # Process data
 df = load_and_clean(df)
+
+# Validate required columns exist
+required_cols = ["Title", "Author"]
+missing = [c for c in required_cols if c not in df.columns]
+if missing:
+    st.error(f"Missing required columns: {', '.join(missing)}. Is this a GoodReads export CSV?")
+    st.caption(f"Found columns: {', '.join(df.columns.tolist())}")
+    st.stop()
+
 stats = reading_stats(df)
 
 # ═══════════════════════════════════════════

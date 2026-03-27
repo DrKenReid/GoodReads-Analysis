@@ -12,8 +12,27 @@ def load_and_clean(df: pd.DataFrame) -> pd.DataFrame:
     """Clean GoodReads CSV export into usable DataFrame."""
     df = df.copy()
 
-    # Normalize column names (strip whitespace)
+    # Normalize column names (strip whitespace, handle common variations)
     df.columns = df.columns.str.strip()
+
+    # Map common column name variations
+    column_map = {
+        "my rating": "My Rating",
+        "average rating": "Average Rating",
+        "number of pages": "Number of Pages",
+        "year published": "Year Published",
+        "original publication year": "Original Publication Year",
+        "date read": "Date Read",
+        "date added": "Date Added",
+        "exclusive shelf": "Exclusive Shelf",
+        "my review": "My Review",
+        "read count": "Read Count",
+        "owned copies": "Owned Copies",
+    }
+    lower_cols = {c.lower(): c for c in df.columns}
+    for target_lower, canonical in column_map.items():
+        if canonical not in df.columns and target_lower in lower_cols:
+            df.rename(columns={lower_cols[target_lower]: canonical}, inplace=True)
 
     # Numeric columns
     for col in ["My Rating", "Average Rating", "Number of Pages", "Year Published",
@@ -96,15 +115,15 @@ def reading_personality(stats: dict, df: pd.DataFrame) -> tuple:
     strict = avg_rating < 3.3 if avg_rating > 0 else False
     generous = avg_rating > 4.2 if avg_rating > 0 else False
 
-    # Books per year
-    bpy = total / max(stats["years_active"], 1)
+    # Books per year (only meaningful with multiple years of data)
+    bpy = total / max(stats["years_active"], 1) if stats["years_active"] >= 2 else 0
 
     if strict and stats["rated_count"] > 10:
         return ("The Critic", "🧐",
                 f"Average rating: {avg_rating}. You don't hand out stars like candy. "
                 "Authors have to *earn* your approval, and most of them don't.")
 
-    if bpy > 40:
+    if bpy > 40 and stats["years_active"] >= 2:
         return ("The Binge Reader", "📖",
                 f"{int(bpy)} books per year? That's not a hobby, that's a lifestyle. "
                 "Your library card has probably filed for overtime.")

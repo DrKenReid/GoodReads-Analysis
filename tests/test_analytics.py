@@ -172,10 +172,10 @@ class TestReadingPersonality:
         assert title == "The Critic"
 
     def test_binge_reader(self):
-        # 50 books in 1 year → bpy > 40
-        dates = ["2023/01/01"] * 50
+        # 90 books across 2 years → bpy = 45 > 40
+        dates = ["2022/06/01"] * 45 + ["2023/06/01"] * 45
         title, emoji, desc = self._get_personality(
-            n=50, ratings=[4]*50, dates_read=dates
+            n=90, ratings=[4]*90, dates_read=dates
         )
         assert title == "The Binge Reader"
 
