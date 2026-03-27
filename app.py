@@ -754,34 +754,47 @@ with tab_quotes:
         st.markdown(f"**{len(filtered)}** quotes shown")
 
         # Select all / deselect all
-        sel_col1, sel_col2, _ = st.columns([1, 1, 4])
+        sel_col1, sel_col2, sel_col3 = st.columns([1, 1, 4])
         with sel_col1:
             if st.button("✅ Select All", key="q_select_all"):
                 st.session_state["q_selected"] = set(filtered.index.tolist())
+                st.rerun()
         with sel_col2:
             if st.button("❌ Deselect All", key="q_deselect_all"):
                 st.session_state["q_selected"] = set()
+                st.rerun()
+        with sel_col3:
+            selected_count = len(st.session_state.get("q_selected", set()))
+            st.caption(f"**{selected_count}** of {len(filtered)} quotes selected for export")
 
         if "q_selected" not in st.session_state:
             st.session_state["q_selected"] = set(filtered.index.tolist())
 
-        # Display table with selection
-        display_cols = [c for c in ["Quote", "Author", "Book", "Tags", "Popularity"] if c in filtered.columns]
+        # Display table with selection checkboxes
+        display_cols = [c for c in ["Quote", "Author", "Book", "Tags"] if c in filtered.columns]
         if display_cols:
-            # Truncate quote text for display
             display_df = filtered[display_cols].copy()
+            display_df.insert(0, "✅ Export", [i in st.session_state["q_selected"] for i in filtered.index])
             if "Quote" in display_df.columns:
-                display_df["Quote"] = display_df["Quote"].str[:100] + display_df["Quote"].apply(lambda x: "..." if len(str(x)) > 100 else "")
+                display_df["Quote"] = display_df["Quote"].apply(lambda x: str(x)[:120] + ("..." if len(str(x)) > 120 else ""))
 
             edited_df = st.data_editor(
                 display_df,
                 column_config={
+                    "✅ Export": st.column_config.CheckboxColumn("Export?", default=True),
                     "Quote": st.column_config.TextColumn("Quote", width="large"),
                 },
                 use_container_width=True,
                 hide_index=True,
                 key="quotes_table",
             )
+
+            # Update selection based on checkboxes
+            if edited_df is not None:
+                selected_mask = edited_df["✅ Export"].tolist()
+                st.session_state["q_selected"] = set(
+                    idx for idx, sel in zip(filtered.index, selected_mask) if sel
+                )
 
         # ═══════════════════════════════════════════
         # VISUALIZATIONS
@@ -830,16 +843,20 @@ with tab_quotes:
             include_tags = st.checkbox("Include tags", value=True, key="export_tags")
             include_books = st.checkbox("Include book titles", value=True, key="export_books")
             include_popularity = st.checkbox("Include popularity scores", value=False, key="export_pop")
-            use_selected_only = st.checkbox("Export selected/filtered quotes only", value=False, key="export_selected")
+            export_all = st.checkbox("Export ALL quotes (ignore selection)", value=False, key="export_all")
 
         # Build theme with custom accent
         export_theme = THEMES[theme_name].copy()
         export_theme["accent"] = accent_color
 
-        # Choose which quotes to export
-        export_df = filtered if use_selected_only else qdf
-
-        st.markdown(f"**Exporting {len(export_df)} quotes**")
+        # Use selected quotes by default, all if checkbox ticked
+        selected_indices = st.session_state.get("q_selected", set())
+        if export_all or not selected_indices:
+            export_df = qdf
+            st.markdown(f"**Exporting all {len(export_df)} quotes**")
+        else:
+            export_df = qdf.loc[qdf.index.isin(selected_indices)]
+            st.markdown(f"**Exporting {len(export_df)} selected quotes** (out of {len(qdf)} total)")
 
         dl1, dl2, dl3, dl4 = st.columns(4)
 
