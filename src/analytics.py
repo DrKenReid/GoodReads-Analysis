@@ -1,3 +1,4 @@
+# GoodReads analytics functions
 """
 analytics.py — Data processing, metrics, and commentary for GoodReads Reading Stats.
 """
