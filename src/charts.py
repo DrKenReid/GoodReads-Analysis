@@ -1,5 +1,5 @@
 """
-charts.py — Plotly chart builders for GoodReads Wrapped (dark theme).
+charts.py — Plotly chart builders for GoodReads Reading Stats (dark theme).
 """
 
 import plotly.express as px
@@ -248,3 +248,55 @@ def rating_difference_chart(loved: pd.DataFrame, hated: pd.DataFrame):
     fig.update_layout(barmode="relative", yaxis=dict(autorange="reversed"),
                       xaxis_title="Rating Difference")
     return _base_layout(fig, "Your Taste vs The Crowd")
+
+
+def stats_comparison_chart(stats1: dict, stats2: dict, name1: str, name2: str):
+    """Grouped bar chart comparing two readers' stats."""
+    categories = ["Books Read", "Total Pages (÷100)", "Avg Rating", "Avg Pages/Book"]
+    vals1 = [
+        stats1["total_books"],
+        stats1["total_pages"] / 100,
+        stats1["avg_rating"],
+        stats1["avg_pages"],
+    ]
+    vals2 = [
+        stats2["total_books"],
+        stats2["total_pages"] / 100,
+        stats2["avg_rating"],
+        stats2["avg_pages"],
+    ]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=categories, y=vals1, name=name1,
+        marker_color=COLORS["gold"],
+        hovertemplate="%{x}: %{y:.1f}<extra></extra>"
+    ))
+    fig.add_trace(go.Bar(
+        x=categories, y=vals2, name=name2,
+        marker_color=COLORS["blue"],
+        hovertemplate="%{x}: %{y:.1f}<extra></extra>"
+    ))
+    fig.update_layout(barmode="group")
+    return _base_layout(fig, "📊 Stats Comparison")
+
+
+def shared_authors_chart(shared_df: pd.DataFrame, name1: str, name2: str):
+    """Bar chart of shared authors with book counts from each reader."""
+    if len(shared_df) == 0:
+        return go.Figure()
+
+    top = shared_df.head(15)
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        y=top["Author"], x=top["Books_1"], name=name1,
+        orientation="h", marker_color=COLORS["gold"],
+        hovertemplate="%{y}: %{x} books<extra></extra>"
+    ))
+    fig.add_trace(go.Bar(
+        y=top["Author"], x=top["Books_2"], name=name2,
+        orientation="h", marker_color=COLORS["blue"],
+        hovertemplate="%{y}: %{x} books<extra></extra>"
+    ))
+    fig.update_layout(barmode="group", yaxis=dict(autorange="reversed"))
+    return _base_layout(fig, "📚 Shared Authors")

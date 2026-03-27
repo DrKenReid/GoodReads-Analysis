@@ -1,9 +1,10 @@
 """
-GoodReads Wrapped — Spotify Wrapped, but for your reading life. 📚
+GoodReads Reading Stats — your reading life, analyzed. 📚
 """
 
 import streamlit as st
 import pandas as pd
+import random
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 
@@ -12,16 +13,18 @@ from src.analytics import (
     books_you_loved, books_you_hated, books_by_year, books_by_month,
     reading_streak, top_authors, genre_breakdown, genre_personality_tags,
     shelf_of_shame, page_stats, stats_commentary, shelf_roast,
-    generate_demo_data,
+    generate_demo_data, fun_page_facts, compare_reading_stats,
+    shared_authors, comparison_commentary,
 )
 from src.charts import (
     rating_distribution_chart, rating_comparison_chart, books_per_year_chart,
     cumulative_reading_chart, reading_heatmap, top_authors_chart,
     genre_treemap, page_distribution_chart, page_vs_rating_chart,
-    rating_difference_chart, PLOT_CONFIG,
+    rating_difference_chart, stats_comparison_chart, shared_authors_chart,
+    PLOT_CONFIG,
 )
 
-st.set_page_config(page_title="GoodReads Wrapped", page_icon="📚", layout="wide")
+st.set_page_config(page_title="GoodReads Reading Stats", page_icon="📚", layout="wide")
 
 # Custom CSS
 st.markdown("""
@@ -55,12 +58,29 @@ st.markdown("""
         color: #f39c12;
         font-size: 0.95rem;
     }
+    .comparison-card {
+        text-align: center;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border-radius: 1rem;
+        border: 1px solid #e74c3c33;
+        margin: 0.5rem 0;
+    }
+    .winner-badge {
+        display: inline-block;
+        padding: 0.3rem 0.8rem;
+        background: #f39c12;
+        color: #0e1117;
+        border-radius: 1rem;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # Header
-st.markdown("# 📚 GoodReads Wrapped")
-st.markdown("*Spotify Wrapped, but for your reading life.*")
+st.markdown("# 📚 GoodReads Reading Stats")
+st.markdown("*Your reading life, analyzed.*")
 st.markdown("---")
 
 # Upload or demo
@@ -94,18 +114,86 @@ if df is None:
 # Process data
 df = load_and_clean(df)
 
-# Detect CSV type
+# ═══════════════════════════════════════════
+# QUOTES CSV DETECTION & HANDLING
+# ═══════════════════════════════════════════
 is_quotes_csv = "Goodreads Quote Id" in df.columns or "Quote" in df.columns
 
 if is_quotes_csv:
-    st.warning("⚠️ This looks like a GoodReads **Quotes** export, not your library export.")
-    st.info(
-        "This app works best with your **library export**. To get it:\n\n"
-        "1. Go to [GoodReads → My Books → Import/Export](https://www.goodreads.com/review/import)\n"
-        "2. Click **Export Library**\n"
-        "3. Upload the downloaded CSV here\n\n"
-        "We'll show what we can with the quotes data, but ratings, reading timeline, and most features need the library export."
+    st.markdown("## 💬 Your GoodReads Quotes")
+    st.info("We detected a **Quotes** export. Here's what we found!")
+
+    total_quotes = len(df)
+    st.metric("📝 Total Quotes Saved", f"{total_quotes:,}")
+
+    # Most-quoted authors
+    author_col = None
+    for c in ["Author", "author", "Author Name"]:
+        if c in df.columns:
+            author_col = c
+            break
+
+    if author_col:
+        author_counts = df[author_col].value_counts().head(15).reset_index()
+        author_counts.columns = ["Author", "Quotes"]
+        st.markdown("### ✍️ Most-Quoted Authors")
+        fig = top_authors_chart(author_counts.rename(columns={"Quotes": "Books"}))
+        fig.update_layout(title=dict(text="Most-Quoted Authors"))
+        st.plotly_chart(fig, use_container_width=True, config=PLOT_CONFIG)
+
+    # Tags / top tags
+    tag_col = None
+    for c in ["Tags", "tags", "Tag"]:
+        if c in df.columns:
+            tag_col = c
+            break
+
+    if tag_col:
+        all_tags = {}
+        for val in df[tag_col].dropna():
+            for t in str(val).split(","):
+                t = t.strip()
+                if t:
+                    all_tags[t] = all_tags.get(t, 0) + 1
+        if all_tags:
+            st.markdown("### 🏷️ Top Quote Tags")
+            sorted_tags = sorted(all_tags.items(), key=lambda x: -x[1])[:20]
+            tags_html = " ".join(
+                f'<span class="genre-tag">{t} ({c})</span>' for t, c in sorted_tags
+            )
+            st.markdown(f'<div style="margin:8px 0;">{tags_html}</div>', unsafe_allow_html=True)
+
+    # Random quote display
+    quote_col = None
+    for c in ["Quote", "quote", "Text", "text"]:
+        if c in df.columns:
+            quote_col = c
+            break
+
+    if quote_col:
+        st.markdown("### 🎲 Random Quote")
+        valid_quotes = df[quote_col].dropna()
+        if len(valid_quotes) > 0:
+            random_quote = valid_quotes.sample(1).iloc[0]
+            author_text = ""
+            if author_col and pd.notna(df.loc[valid_quotes.sample(1).index[0], author_col] if author_col in df.columns else None):
+                idx = valid_quotes.sample(1, random_state=42).index[0]
+                random_quote = df.loc[idx, quote_col]
+                if author_col in df.columns:
+                    author_text = f" — *{df.loc[idx, author_col]}*"
+            st.markdown(f'> "{random_quote}"{author_text}')
+            if st.button("🔄 Another quote"):
+                st.rerun()
+
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    st.markdown(
+        '<div style="text-align:center; color:#555; padding:2rem;">'
+        'Want the full reading analysis? Upload your <b>library export</b> instead!<br>'
+        'Go to GoodReads → My Books → Import/Export → Export Library'
+        '</div>',
+        unsafe_allow_html=True,
     )
+    st.stop()
 
 # Validate required columns exist
 required_cols = ["Title", "Author"]
@@ -114,6 +202,122 @@ if missing:
     st.error(f"Missing required columns: {', '.join(missing)}. Is this a GoodReads export CSV?")
     st.caption(f"Found columns: {', '.join(df.columns.tolist())}")
     st.stop()
+
+# ═══════════════════════════════════════════
+# COMPARISON MODE
+# ═══════════════════════════════════════════
+show_comparison = st.checkbox("⚔️ Compare with another reader")
+df2 = None
+
+if show_comparison:
+    uploaded2 = st.file_uploader("Upload second reader's GoodReads CSV", type=["csv"], key="compare_upload")
+    if uploaded2:
+        df2 = load_and_clean(pd.read_csv(uploaded2))
+
+if show_comparison and df2 is not None:
+    # Get names from filenames or first author
+    name1 = uploaded.name.replace(".csv", "").replace("_", " ").title() if uploaded else "Reader 1"
+    name2 = uploaded2.name.replace(".csv", "").replace("_", " ").title() if uploaded2 else "Reader 2"
+
+    stats1 = reading_stats(df)
+    stats2 = reading_stats(df2)
+
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    st.markdown("## ⚔️ Head-to-Head Reading Showdown")
+
+    # Personality cards side by side
+    title1, emoji1, desc1 = reading_personality(stats1, df)
+    title2, emoji2, desc2 = reading_personality(stats2, df2)
+
+    pc1, pc2 = st.columns(2)
+    with pc1:
+        st.markdown(f"""
+        <div class="comparison-card">
+            <div style="font-size:3rem;">{emoji1}</div>
+            <div style="font-size:1.5rem; font-weight:bold; color:#f39c12;">{name1}</div>
+            <div style="font-size:1.1rem; color:#ccc;">{title1}</div>
+            <div style="font-size:0.9rem; color:#999; margin-top:0.5rem;">{desc1}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with pc2:
+        st.markdown(f"""
+        <div class="comparison-card">
+            <div style="font-size:3rem;">{emoji2}</div>
+            <div style="font-size:1.5rem; font-weight:bold; color:#3498db;">{name2}</div>
+            <div style="font-size:1.1rem; color:#ccc;">{title2}</div>
+            <div style="font-size:0.9rem; color:#999; margin-top:0.5rem;">{desc2}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Stats showdown
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    st.markdown("## 📊 Stats Showdown")
+
+    comparisons = compare_reading_stats(stats1, stats2, name1, name2)
+    for comp in comparisons:
+        trophy = "🏆" if comp["winner"] else "🤝"
+        winner_text = f'{trophy} **{comp["winner"]}**' if comp["winner"] else f"{trophy} Tie!"
+        sc1, sc2, sc3 = st.columns([2, 1, 2])
+        with sc1:
+            st.metric(f"{name1}", comp["value1"])
+        with sc2:
+            st.markdown(f"**{comp['stat']}**\n\n{winner_text}")
+        with sc3:
+            st.metric(f"{name2}", comp["value2"])
+
+    # Comparison chart
+    st.plotly_chart(stats_comparison_chart(stats1, stats2, name1, name2),
+                    use_container_width=True, config=PLOT_CONFIG)
+
+    # Shared authors
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    st.markdown("## 📚 Shared Authors")
+    shared_df = shared_authors(df, df2)
+    if len(shared_df) > 0:
+        st.markdown(f"You both read **{len(shared_df)}** authors in common!")
+        st.plotly_chart(shared_authors_chart(shared_df, name1, name2),
+                        use_container_width=True, config=PLOT_CONFIG)
+    else:
+        st.info("No shared authors found — you two have completely different taste! 🤷")
+
+    # Genre overlap
+    genres1 = genre_breakdown(df)
+    genres2 = genre_breakdown(df2)
+    if len(genres1) > 0 and len(genres2) > 0:
+        st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+        st.markdown("## 🎯 Genre Overlap")
+        g1_set = set(genres1["Genre"].str.lower())
+        g2_set = set(genres2["Genre"].str.lower())
+        overlap = g1_set & g2_set
+        only1 = g1_set - g2_set
+        only2 = g2_set - g1_set
+        if overlap:
+            overlap_html = " ".join(f'<span class="genre-tag">{g.title()}</span>' for g in sorted(overlap))
+            st.markdown(f"**Shared genres:** {overlap_html}", unsafe_allow_html=True)
+        if only1:
+            st.markdown(f"**Only {name1}:** {', '.join(sorted(g.title() for g in list(only1)[:10]))}")
+        if only2:
+            st.markdown(f"**Only {name2}:** {', '.join(sorted(g.title() for g in list(only2)[:10]))}")
+
+    # Commentary
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    st.markdown("## 🎤 The Verdict")
+    commentary = comparison_commentary(stats1, stats2, name1, name2)
+    st.markdown(f'<div class="roast-text">{commentary}</div>', unsafe_allow_html=True)
+
+    # Footer
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    st.markdown(
+        '<div style="text-align:center; color:#555; padding:2rem;">'
+        'Made with ❤️ and 📚 | Upload your GoodReads export to see your own stats'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    st.stop()
+
+# ═══════════════════════════════════════════
+# SINGLE PLAYER MODE
+# ═══════════════════════════════════════════
 
 stats = reading_stats(df)
 
@@ -152,6 +356,14 @@ c4.metric("📏 Avg Pages/Book", f"{stats['avg_pages']:,}")
 
 commentary = stats_commentary(stats)
 st.markdown(f'<div class="roast-text">{commentary}</div>', unsafe_allow_html=True)
+
+# Fun page facts
+if stats["total_pages"] > 0:
+    facts = fun_page_facts(stats["total_pages"])
+    if facts:
+        st.markdown("### 🤯 Fun Page Facts")
+        for fact in facts:
+            st.markdown(fact)
 
 # ═══════════════════════════════════════════
 # 3. RATING ANALYSIS
@@ -322,15 +534,19 @@ def generate_summary_card(title_text, emoji_char, stats_dict, top_loved, tags_li
 
     # Try to use a nice font, fall back to default
     try:
-        font_large = ImageFont.truetype("arial.ttf", 42)
-        font_medium = ImageFont.truetype("arial.ttf", 24)
-        font_small = ImageFont.truetype("arial.ttf", 18)
-        font_emoji = ImageFont.truetype("seguiemj.ttf", 60)
+        font_title = ImageFont.truetype("arial.ttf", 28)
+        font_subtitle = ImageFont.truetype("arial.ttf", 18)
+        font_stats = ImageFont.truetype("arial.ttf", 18)
+        font_game = ImageFont.truetype("arial.ttf", 16)
+        font_small = ImageFont.truetype("arial.ttf", 14)
+        font_emoji = ImageFont.truetype("seguiemj.ttf", 80)
     except (OSError, IOError):
-        font_large = ImageFont.load_default()
-        font_medium = font_large
-        font_small = font_large
-        font_emoji = font_large
+        font_title = ImageFont.load_default()
+        font_subtitle = font_title
+        font_stats = font_title
+        font_game = font_title
+        font_small = font_title
+        font_emoji = font_title
 
     # Background gradient effect (simple rectangles)
     for i in range(height):
@@ -343,14 +559,14 @@ def generate_summary_card(title_text, emoji_char, stats_dict, top_loved, tags_li
     draw.rectangle([(10, 10), (width - 10, height - 10)], outline="#e74c3c", width=2)
 
     # Header
-    draw.text((width // 2, 50), "📚 GoodReads Wrapped", fill="#f39c12",
-              font=font_large, anchor="mt")
+    draw.text((width // 2, 50), "📚 GoodReads Reading Stats", fill="#f39c12",
+              font=font_title, anchor="mt")
 
     # Personality
     y = 130
     draw.text((width // 2, y), emoji_char, fill="#ffffff", font=font_emoji, anchor="mt")
-    y += 80
-    draw.text((width // 2, y), title_text, fill="#f39c12", font=font_medium, anchor="mt")
+    y += 100
+    draw.text((width // 2, y), title_text, fill="#f39c12", font=font_subtitle, anchor="mt")
 
     # Stats
     y += 60
@@ -362,31 +578,31 @@ def generate_summary_card(title_text, emoji_char, stats_dict, top_loved, tags_li
     ]
 
     for label, value in stat_items:
-        draw.text((100, y), label, fill="#888888", font=font_small)
-        draw.text((400, y), str(value), fill="#fafafa", font=font_medium)
-        y += 40
+        draw.text((100, y), label, fill="#888888", font=font_stats)
+        draw.text((420, y), str(value), fill="#fafafa", font=font_stats)
+        y += 45
 
     # Top books
     if len(top_loved) > 0:
         y += 30
-        draw.text((100, y), "Books You Loved Most:", fill="#f39c12", font=font_medium)
+        draw.text((100, y), "Books You Loved Most:", fill="#f39c12", font=font_subtitle)
         y += 35
         for _, row in top_loved.head(3).iterrows():
-            title_str = str(row.get("Title", "?"))[:40]
-            draw.text((120, y), f"• {title_str}", fill="#cccccc", font=font_small)
-            y += 28
+            title_str = str(row.get("Title", "?"))[:50]
+            draw.text((120, y), f"• {title_str}", fill="#cccccc", font=font_game)
+            y += 30
 
     # Genre tags
     if tags_list:
         y += 30
-        draw.text((100, y), "Your Genres:", fill="#f39c12", font=font_medium)
+        draw.text((100, y), "Your Genres:", fill="#f39c12", font=font_subtitle)
         y += 35
         for tag in tags_list[:4]:
-            draw.text((120, y), tag, fill="#cccccc", font=font_small)
-            y += 28
+            draw.text((120, y), tag, fill="#cccccc", font=font_game)
+            y += 30
 
     # Footer
-    draw.text((width // 2, height - 40), "goodreads-wrapped.streamlit.app",
+    draw.text((width // 2, height - 40), "goodreads-reading-stats.streamlit.app",
               fill="#555555", font=font_small, anchor="mt")
 
     return img
@@ -403,7 +619,7 @@ st.image(card, use_container_width=False, width=400)
 st.download_button(
     label="📥 Download Summary Card",
     data=buf.getvalue(),
-    file_name="goodreads_wrapped.png",
+    file_name="goodreads_reading_stats.png",
     mime="image/png",
 )
 

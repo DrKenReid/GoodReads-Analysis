@@ -1,5 +1,5 @@
 """
-analytics.py — Data processing, metrics, and commentary for GoodReads Wrapped.
+analytics.py — Data processing, metrics, and commentary for GoodReads Reading Stats.
 """
 
 import pandas as pd
@@ -549,3 +549,126 @@ def generate_demo_data() -> pd.DataFrame:
             data[key].extend(["" for _ in range(tbr_n)])
 
     return pd.DataFrame(data)
+
+
+def fun_page_facts(total_pages: int) -> list:
+    """Return fun comparisons based on total pages read."""
+    facts = []
+
+    war_and_peace_pages = 1225
+    copies = total_pages / war_and_peace_pages
+    facts.append(f"📖 That's **{copies:.1f} copies** of War and Peace (587,287 words / ~1,225 pages)")
+
+    # Stacked books (avg 2.5cm per book, estimate books from pages at ~300 pages/book)
+    est_books = total_pages / 300
+    height_m = est_books * 0.025
+    facts.append(f"📚 Stacked up, your books would be **{height_m:.1f} meters** tall")
+
+    # Wallpaper bathrooms (bathroom ~50 sq meters, page ~0.06 sq meters)
+    page_area = total_pages * 0.06  # sq meters
+    bathrooms = page_area / 50
+    facts.append(f"🛁 That's enough pages to wallpaper **{bathrooms:.1f} bathrooms**")
+
+    # Library of Congress (170 million items)
+    loc_pct = (total_pages / 170_000_000) * 100
+    facts.append(f"🏛️ You've read **{loc_pct:.6f}%** of the Library of Congress (170 million items)")
+
+    # Laid end to end (page ~28cm)
+    total_km = (total_pages * 0.28) / 1000
+    facts.append(f"📏 Laid end to end, your pages would stretch **{total_km:.2f} km**")
+
+    return facts
+
+
+def compare_reading_stats(stats1: dict, stats2: dict, name1: str, name2: str) -> list:
+    """Compare two readers' stats. Returns list of comparison dicts with winners."""
+    comparisons = []
+    metrics = [
+        ("📚 Books Read", "total_books", "higher"),
+        ("📄 Total Pages", "total_pages", "higher"),
+        ("⭐ Avg Rating", "avg_rating", "higher"),
+        ("📏 Avg Pages/Book", "avg_pages", "higher"),
+        ("📅 Years Active", "years_active", "higher"),
+    ]
+
+    for label, key, direction in metrics:
+        v1 = stats1.get(key, 0)
+        v2 = stats2.get(key, 0)
+
+        if isinstance(v1, float):
+            val1_str = f"{v1:.2f}"
+            val2_str = f"{v2:.2f}"
+        else:
+            val1_str = f"{v1:,}"
+            val2_str = f"{v2:,}"
+
+        if v1 == v2:
+            winner = None
+        elif (v1 > v2) == (direction == "higher"):
+            winner = name1
+        else:
+            winner = name2
+
+        comparisons.append({
+            "stat": label,
+            "value1": val1_str,
+            "value2": val2_str,
+            "winner": winner,
+        })
+
+    return comparisons
+
+
+def shared_authors(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+    """Find authors both readers have read. Returns DataFrame with author and counts."""
+    read1 = _read_books(df1)
+    read2 = _read_books(df2)
+
+    if "Author" not in read1.columns or "Author" not in read2.columns:
+        return pd.DataFrame()
+
+    authors1 = read1["Author"].value_counts().reset_index()
+    authors1.columns = ["Author", "Books_1"]
+    authors2 = read2["Author"].value_counts().reset_index()
+    authors2.columns = ["Author", "Books_2"]
+
+    merged = authors1.merge(authors2, on="Author", how="inner")
+    merged["Total"] = merged["Books_1"] + merged["Books_2"]
+    return merged.sort_values("Total", ascending=False).head(20)
+
+
+def comparison_commentary(stats1: dict, stats2: dict, name1: str, name2: str) -> str:
+    """Generate funny comparison text between two readers."""
+    lines = []
+
+    # Volume comparison
+    b1, b2 = stats1["total_books"], stats2["total_books"]
+    if b1 > b2 * 2:
+        lines.append(f"📚 {name1} has read {b1} books vs {name2}'s {b2}. That's not a competition, that's a demolition.")
+    elif b2 > b1 * 2:
+        lines.append(f"📚 {name2} has read {b2} books vs {name1}'s {b1}. Someone's been slacking... 👀")
+    elif abs(b1 - b2) < 5:
+        lines.append(f"📚 {b1} vs {b2} books — eerily close. Are you two in some kind of reading pact?")
+    else:
+        leader = name1 if b1 > b2 else name2
+        lines.append(f"📚 {leader} takes the lead in book count, but it's not about quantity... or is it?")
+
+    # Rating comparison
+    r1, r2 = stats1["avg_rating"], stats2["avg_rating"]
+    if r1 > 0 and r2 > 0:
+        if abs(r1 - r2) < 0.2:
+            lines.append(f"⭐ Average ratings are nearly identical ({r1} vs {r2}). You two might share a brain.")
+        elif r1 > r2:
+            lines.append(f"⭐ {name1} is the generous rater ({r1} vs {r2}). {name2} has trust issues with authors.")
+        else:
+            lines.append(f"⭐ {name2} rates higher ({r2} vs {r1}). {name1} is the Simon Cowell of book reviews.")
+
+    # Pages comparison
+    p1, p2 = stats1["total_pages"], stats2["total_pages"]
+    if p1 > 0 and p2 > 0:
+        if p1 > p2:
+            lines.append(f"📄 {name1} has turned {p1:,} pages to {name2}'s {p2:,}. That's a lot of paper cuts.")
+        else:
+            lines.append(f"📄 {name2} leads in pages ({p2:,} vs {p1:,}). Absolute page-turning machine.")
+
+    return "\n\n".join(lines)
