@@ -708,6 +708,23 @@ page_facts_for_card = fun_page_facts(stats["total_pages"]) if stats["total_pages
 card = generate_summary_card(title, emoji, stats, loved_for_card, tags,
                              card_sections, authors_for_card, page_facts_for_card)
 
+# Debug: show card dimensions and font info
+with st.expander("🔧 Card Debug Info (remove later)"):
+    st.write(f"Card size: {card.size}")
+    fonts_debug = _load_fonts()
+    st.write(f"Emoji font loaded: {fonts_debug.get('emoji') is not None}")
+    if fonts_debug.get('emoji'):
+        st.write(f"Emoji font: {fonts_debug['emoji'].path if hasattr(fonts_debug['emoji'], 'path') else 'unknown'}")
+    import os
+    emoji_paths = [
+        "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
+        "/usr/share/fonts/truetype/noto-color-emoji/NotoColorEmoji.ttf",
+        "/usr/share/fonts/noto-color-emoji/NotoColorEmoji.ttf",
+        "/usr/share/fonts/truetype/google-noto/NotoColorEmoji.ttf",
+    ]
+    for p in emoji_paths:
+        st.write(f"{p}: {'EXISTS' if os.path.exists(p) else 'not found'}")
+
 buf = BytesIO()
 card.save(buf, format="PNG")
 buf.seek(0)
