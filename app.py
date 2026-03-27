@@ -622,137 +622,79 @@ _full_card_html = f'''
 </div>
 '''
 
-# Display card
-try:
-    st.html(_full_card_html)
-except AttributeError:
-    st.markdown(_full_card_html, unsafe_allow_html=True)
+# Display card and provide client-side download (captures emoji via html2canvas)
+import streamlit.components.v1 as components
 
-st.caption("📱 Screenshot this card to share, or download below!")
+_download_card_html = f'''
+<html>
+<head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+body {{ margin: 0; padding: 0; background: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
+.card {{
+    background: linear-gradient(135deg, #0e1117, #1a1c2e);
+    border: 2px solid #e74c3c;
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 600px;
+    margin: 0 auto;
+    color: white;
+}}
+.card-header {{ text-align: center; font-size: 20px; font-weight: bold; color: #f39c12; margin-bottom: 20px; }}
+.download-btn {{
+    display: block;
+    margin: 16px auto 0;
+    padding: 10px 24px;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    cursor: pointer;
+    font-weight: bold;
+}}
+.download-btn:hover {{ background: #c0392b; }}
+</style>
+</head>
+<body>
+<div id="capture-card" class="card">
+    <div class="card-header">📚 GoodReads Reading Stats</div>
+    {_card_inner}
+    <div style="text-align:center;color:#555;font-size:11px;border-top:1px solid #333;padding-top:10px;margin-top:10px;">
+        goodreads-analysis.streamlit.app
+    </div>
+</div>
+<button class="download-btn" onclick="downloadCard()">📥 Download Summary Card</button>
+<script>
+function downloadCard() {{
+    const card = document.getElementById('capture-card');
+    html2canvas(card, {{
+        backgroundColor: '#0e1117',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+    }}).then(canvas => {{
+        const link = document.createElement('a');
+        link.download = 'goodreads_reading_stats.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    }});
+}}
+</script>
+</body>
+</html>
+'''
 
-# Generate downloadable PNG version with Pillow (no emoji, clean text)
-try:
-    CARD_W = 900
-    PAD = 30
+# Calculate height needed for the component
+_component_h = 350
+if "Reading Personality" in card_sections: _component_h += 120
+if "Key Stats" in card_sections: _component_h += 140
+if "Top Books" in card_sections: _component_h += 120
+if "Genre Tags" in card_sections: _component_h += 60
+if "Fun Page Facts" in card_sections: _component_h += 120
+if "Author Stats" in card_sections: _component_h += 180
 
-    # Load fonts
-    _fonts = {}
-    for fname, fsize in [("title", 28), ("sub", 20), ("body", 16), ("small", 13)]:
-        for fpath in [
-            f"/usr/share/fonts/truetype/dejavu/DejaVuSans{'-Bold' if fname == 'title' else ''}.ttf",
-            f"C:/Windows/Fonts/{'arialbd.ttf' if fname == 'title' else 'arial.ttf'}",
-        ]:
-            try:
-                _fonts[fname] = ImageFont.truetype(fpath, fsize)
-                break
-            except (OSError, IOError):
-                continue
-        if fname not in _fonts:
-            _fonts[fname] = ImageFont.load_default(size=fsize)
-
-    # Calculate height
-    cy = PAD + 40  # header
-    if "Reading Personality" in card_sections:
-        cy += 70
-    if "Key Stats" in card_sections:
-        cy += 4 * 35 + 30
-    if "Top Books" in card_sections and len(loved_for_card) > 0:
-        cy += 25 + min(len(loved_for_card), 3) * 28
-    if "Genre Tags" in card_sections and tags:
-        cy += 45
-    if "Fun Page Facts" in card_sections and page_facts_for_card:
-        cy += 25 + min(len(page_facts_for_card), 3) * 28
-    if "Author Stats" in card_sections and len(authors_for_card) > 0:
-        cy += 25 + min(len(authors_for_card), 5) * 28
-    cy += 50  # footer
-    CARD_H = max(cy, 300)
-
-    _img = Image.new("RGB", (CARD_W, CARD_H), color=(14, 17, 23))
-    _draw = ImageDraw.Draw(_img)
-
-    # Gradient
-    for _i in range(CARD_H):
-        _r = int(14 + (26 - 14) * _i / CARD_H)
-        _g = int(17 + (28 - 17) * _i / CARD_H)
-        _b = int(23 + (46 - 23) * _i / CARD_H)
-        _draw.line([(0, _i), (CARD_W, _i)], fill=(_r, _g, _b))
-
-    _draw.rounded_rectangle([(8, 8), (CARD_W - 8, CARD_H - 8)], radius=16, outline="#e74c3c", width=2)
-
-    # Header
-    _draw.text((CARD_W // 2, PAD), "GoodReads Reading Stats", fill="#f39c12", font=_fonts["title"], anchor="mt")
-    _y = PAD + 50
-
-    # Personality (text only — no emoji in PNG)
-    if "Reading Personality" in card_sections:
-        _draw.text((CARD_W // 2, _y), title, fill="#f39c12", font=_fonts["title"], anchor="mt")
-        _y += 35
-        desc_short = description[:80] + "..." if len(description) > 80 else description
-        _draw.text((CARD_W // 2, _y), desc_short, fill="#aaaaaa", font=_fonts["small"], anchor="mt")
-        _y += 35
-
-    # Key Stats
-    if "Key Stats" in card_sections:
-        for lbl, val in [("Books Read", f"{stats['total_books']:,}"), ("Total Pages", f"{stats['total_pages']:,}"),
-                          ("Avg Rating", f"{stats['avg_rating']}"), ("Avg Pages/Book", f"{stats['avg_pages']:,}")]:
-            _draw.text((PAD + 40, _y), lbl, fill="#888888", font=_fonts["body"])
-            _draw.text((CARD_W - PAD - 40, _y), val, fill="white", font=_fonts["body"], anchor="rt")
-            _y += 35
-        _y += 10
-
-    # Top Books
-    if "Top Books" in card_sections and len(loved_for_card) > 0:
-        _draw.text((PAD + 40, _y), "BOOKS YOU LOVED", fill="#888888", font=_fonts["small"])
-        _y += 25
-        for _, _row in loved_for_card.head(3).iterrows():
-            _t = str(_row.get("Title", "?"))[:50]
-            _draw.text((PAD + 50, _y), f"- {_t}", fill="#cccccc", font=_fonts["body"])
-            _y += 28
-
-    # Genre Tags
-    if "Genre Tags" in card_sections and tags:
-        tag_str = " | ".join(tags[:5])
-        _draw.text((CARD_W // 2, _y + 10), tag_str, fill="#e74c3c", font=_fonts["body"], anchor="mt")
-        _y += 45
-
-    # Fun Facts
-    if "Fun Page Facts" in card_sections and page_facts_for_card:
-        _draw.text((PAD + 40, _y), "FUN FACTS", fill="#888888", font=_fonts["small"])
-        _y += 25
-        for _fact in page_facts_for_card[:3]:
-            _clean = _fact.replace("**", "").replace("*", "")
-            import re as _re
-            _clean = _re.sub(r'[\U00010000-\U0010ffff]', '', _clean).strip()
-            if len(_clean) > 75:
-                _clean = _clean[:72] + "..."
-            _draw.text((PAD + 50, _y), _clean, fill="#cccccc", font=_fonts["small"])
-            _y += 28
-
-    # Authors
-    if "Author Stats" in card_sections and len(authors_for_card) > 0:
-        _draw.text((PAD + 40, _y), "TOP AUTHORS", fill="#888888", font=_fonts["small"])
-        _y += 25
-        for _, _row in authors_for_card.head(5).iterrows():
-            _draw.text((PAD + 50, _y), f"- {_row['Author']} ({_row['Books']} books)", fill="#cccccc", font=_fonts["body"])
-            _y += 28
-
-    # Footer
-    _draw.text((CARD_W // 2, CARD_H - 30), "goodreads-analysis.streamlit.app", fill="#555555", font=_fonts["small"], anchor="mt")
-
-    _buf = BytesIO()
-    _img.save(_buf, format="PNG")
-    _card_fname = f"goodreads_stats.png"
-
-    col_dl_l, col_dl_c, col_dl_r = st.columns([1, 2, 1])
-    with col_dl_c:
-        st.download_button(
-            label="📥 Download Summary Card (PNG)",
-            data=_buf.getvalue(),
-            file_name=_card_fname,
-            mime="image/png",
-        )
-except Exception as e:
-    st.caption(f"📷 To save this card, take a screenshot.")
+components.html(_download_card_html, height=_component_h, scrolling=False)
 
 # Footer
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
