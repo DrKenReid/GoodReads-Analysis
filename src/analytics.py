@@ -264,34 +264,47 @@ def top_authors(df: pd.DataFrame, n: int = 20) -> pd.DataFrame:
 
 
 def genre_breakdown(df: pd.DataFrame) -> pd.DataFrame:
-    """Genre breakdown — prefers enhanced CSV genre columns, falls back to bookshelves."""
+    """Genre breakdown — prefers enhanced CSV 'genres' column (semicolon-delimited),
+    then tries genre_1/genre_2/genre_3 columns, falls back to Bookshelves."""
     read = _read_books(df)
 
-    # 1. Try enhanced CSV columns (from Enhance-GoodReads-Export tool)
-    genre_cols = [c for c in read.columns if c.lower().startswith("genre")]
-    if genre_cols:
+    # 1. Try 'genres' column from Enhance-GoodReads-Export (semicolon-delimited)
+    if "genres" in read.columns:
         genre_counts = {}
-        for col in genre_cols:
-            for val in read[col].dropna():
-                for g in str(val).split(","):
-                    g = g.strip()
-                    if g and len(g) > 1:
-                        genre_counts[g] = genre_counts.get(g, 0) + 1
+        for val in read["genres"].dropna():
+            for g in str(val).split(";"):
+                g = g.strip().title()
+                if g and len(g) > 1:
+                    genre_counts[g] = genre_counts.get(g, 0) + 1
         if genre_counts:
             result = pd.DataFrame(list(genre_counts.items()), columns=["Genre", "Count"])
             return result.sort_values("Count", ascending=False).head(30)
 
-    # 2. Fall back to bookshelves (user-created categories)
+    # 2. Try genre_1, genre_2, genre_3 columns (pre-split enhanced data)
+    genre_cols = [c for c in read.columns if c.lower().startswith("genre_") and c.lower() != "genres"]
+    if genre_cols:
+        genre_counts = {}
+        for col in genre_cols:
+            for val in read[col].dropna():
+                g = str(val).strip().title()
+                if g and len(g) > 1:
+                    genre_counts[g] = genre_counts.get(g, 0) + 1
+        if genre_counts:
+            result = pd.DataFrame(list(genre_counts.items()), columns=["Genre", "Count"])
+            return result.sort_values("Count", ascending=False).head(30)
+
+    # 3. Fall back to Bookshelves (user-created categories from standard export)
     if "_shelves" not in read.columns:
         return pd.DataFrame()
 
     skip = {"read", "currently-reading", "to-read", "owned", "favorites",
-            "to-buy", "books-i-own", "default", ""}
+            "to-buy", "books-i-own", "default", "kindle", "ebook", "ebooks",
+            "audiobook", "audiobooks", "library", "own", "owned-books", ""}
     genre_counts = {}
     for shelves in read["_shelves"]:
         for s in shelves:
             if s not in skip and len(s) > 1:
-                genre_counts[s] = genre_counts.get(s, 0) + 1
+                genre_counts[s.title()] = genre_counts.get(s.title(), 0) + 1
 
     if not genre_counts:
         return pd.DataFrame()

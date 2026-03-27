@@ -83,6 +83,20 @@ st.markdown("# 📚 GoodReads Reading Stats")
 st.markdown("*Your reading life, analyzed.*")
 st.markdown("---")
 
+with st.expander("📋 How to get your data (& unlock genre analysis)"):
+    st.markdown("""
+**Basic export** (works for most features):
+1. Go to [GoodReads → My Books → Import/Export](https://www.goodreads.com/review/import)
+2. Click **Export Library** → download the CSV
+3. Upload it here!
+
+**Enhanced export** (unlocks genre breakdown, more accurate dates):
+1. Do the basic export first
+2. Run [Enhance-GoodReads-Export](https://github.com/PaulKlinger/Enhance-GoodReads-Export) on your CSV
+3. This adds genre tags, read dates, and more metadata
+4. Upload the enhanced CSV for the full experience!
+    """)
+
 # Upload or demo
 col1, col2 = st.columns([3, 1])
 with col1:

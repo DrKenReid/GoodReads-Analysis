@@ -4,7 +4,7 @@ A comprehensive analysis of personal reading habits using data exported from [Go
 
 ## 🚀 Live App
 
-**[Try GoodReads Reading Stats →](https://goodreads-reading-stats.streamlit.app/)**
+**[Try GoodReads Reading Stats →](https://goodreads-analysis.streamlit.app/)**
 
 Upload your GoodReads CSV export and get a personalized reading personality analysis, fun roasts of your reading habits, interactive charts, and more. No API key needed — just export your data from GoodReads (**My Books → Import/Export**, bottom-left of your profile) and upload the CSV.
 
@@ -12,7 +12,7 @@ Upload your GoodReads CSV export and get a personalized reading personality anal
 
 1. Go to [GoodReads](https://www.goodreads.com/) → **My Books** → **Import/Export** (bottom-left)
 2. Click **Export Library** to download your CSV
-3. Open the [Streamlit app](https://goodreads-reading-stats.streamlit.app/) and upload the file
+3. Open the [Streamlit app](https://goodreads-analysis.streamlit.app/) and upload the file
 4. Enjoy your reading stats, personality type, and shelf roasts!
 
 > Don't have a GoodReads account? The app includes a **demo mode** with sample data.
