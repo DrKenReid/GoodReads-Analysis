@@ -232,6 +232,22 @@ if len(genres) > 0:
     st.markdown("## 🎯 Genre Breakdown")
     st.plotly_chart(genre_treemap(genres), use_container_width=True, config=PLOT_CONFIG)
 
+    tags = genre_personality_tags(df)
+    if tags:
+        pills_html = " ".join(
+            f'<span style="background:#e74c3c;color:white;padding:4px 12px;border-radius:16px;margin:2px;display:inline-block;font-size:14px;">{t}</span>'
+            for t in tags
+        )
+        st.markdown(f'<div style="margin:8px 0 12px 0;">{pills_html}</div>', unsafe_allow_html=True)
+else:
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    st.markdown("## 🎯 Genre Breakdown")
+    st.info(
+        "No genre data found. Genre analysis requires the enhanced GoodReads export.\n\n"
+        "Use [Enhance-GoodReads-Export](https://github.com/PaulKlinger/Enhance-GoodReads-Export) "
+        "to add genre tags to your CSV, then re-upload."
+    )
+
 # ═══════════════════════════════════════════
 # 6. AUTHOR STATS
 # ═══════════════════════════════════════════

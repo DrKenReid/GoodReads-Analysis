@@ -263,8 +263,24 @@ def top_authors(df: pd.DataFrame, n: int = 20) -> pd.DataFrame:
 
 
 def genre_breakdown(df: pd.DataFrame) -> pd.DataFrame:
-    """Genre breakdown from bookshelves (if available)."""
+    """Genre breakdown — prefers enhanced CSV genre columns, falls back to bookshelves."""
     read = _read_books(df)
+
+    # 1. Try enhanced CSV columns (from Enhance-GoodReads-Export tool)
+    genre_cols = [c for c in read.columns if c.lower().startswith("genre")]
+    if genre_cols:
+        genre_counts = {}
+        for col in genre_cols:
+            for val in read[col].dropna():
+                for g in str(val).split(","):
+                    g = g.strip()
+                    if g and len(g) > 1:
+                        genre_counts[g] = genre_counts.get(g, 0) + 1
+        if genre_counts:
+            result = pd.DataFrame(list(genre_counts.items()), columns=["Genre", "Count"])
+            return result.sort_values("Count", ascending=False).head(30)
+
+    # 2. Fall back to bookshelves (user-created categories)
     if "_shelves" not in read.columns:
         return pd.DataFrame()
 
