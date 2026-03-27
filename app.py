@@ -569,6 +569,17 @@ def _load_fonts():
 def generate_summary_card(title_text, emoji_char, stats_dict, top_loved, tags_list,
                           sections, authors_df, page_facts):
     """Generate a downloadable summary card with dynamic height based on selected sections."""
+    import re
+
+    def _strip_emoji(text):
+        """Remove emoji and other non-BMP characters that DejaVu can't render."""
+        # Remove emoji, symbols, and other non-Latin characters that break Pillow
+        return re.sub(
+            r'[\U00010000-\U0010ffff\u2600-\u27bf\u2b50\u2b55\u231a-\u23ff'
+            r'\ufe0f\u200d\u2764\u2705\u274c\u26a0\u2728\u2b06\u2934\u2935'
+            r'\u25aa\u25ab\u25fc\u25fd\u25fe\u25fb\U0001f000-\U0001ffff]',
+            '', str(text)
+        ).strip()
     width = 900
     fonts = _load_fonts()
 
@@ -610,7 +621,7 @@ def generate_summary_card(title_text, emoji_char, stats_dict, top_loved, tags_li
     # Reading Personality
     if "Reading Personality" in sections:
         # Strip emoji from personality text (DejaVu can't render emoji)
-        draw.text((width // 2, y), title_text, fill="#f39c12",
+        draw.text((width // 2, y), _strip_emoji(title_text), fill="#f39c12",
                   font=fonts["title"], anchor="mt")
         y += 80
 
@@ -634,7 +645,7 @@ def generate_summary_card(title_text, emoji_char, stats_dict, top_loved, tags_li
         y += 40
         for _, row in top_loved.head(3).iterrows():
             title_str = str(row.get("Title", "?"))[:55]
-            draw.text((120, y), f"• {title_str}", fill="#cccccc", font=fonts["body"])
+            draw.text((120, y), _strip_emoji(f"• {title_str}"), fill="#cccccc", font=fonts["body"])
             y += 35
 
     # Genre Tags
@@ -642,7 +653,7 @@ def generate_summary_card(title_text, emoji_char, stats_dict, top_loved, tags_li
         draw.text((100, y), "Your Genres", fill="#f39c12", font=fonts["subtitle"])
         y += 40
         for tag in tags_list[:4]:
-            draw.text((120, y), tag, fill="#cccccc", font=fonts["body"])
+            draw.text((120, y), _strip_emoji(tag), fill="#cccccc", font=fonts["body"])
             y += 35
 
     # Fun Page Facts
@@ -654,7 +665,7 @@ def generate_summary_card(title_text, emoji_char, stats_dict, top_loved, tags_li
             clean = fact.replace("**", "").replace("*", "")
             if len(clean) > 70:
                 clean = clean[:67] + "..."
-            draw.text((120, y), clean, fill="#cccccc", font=fonts["body"])
+            draw.text((120, y), _strip_emoji(clean), fill="#cccccc", font=fonts["body"])
             y += 35
 
     # Author Stats
@@ -662,7 +673,7 @@ def generate_summary_card(title_text, emoji_char, stats_dict, top_loved, tags_li
         draw.text((100, y), "Top Authors", fill="#f39c12", font=fonts["subtitle"])
         y += 40
         for _, row in authors_df.head(5).iterrows():
-            draw.text((120, y), f"• {row['Author']} ({row['Books']} books)",
+            draw.text((120, y), _strip_emoji(f"• {row['Author']} ({row['Books']} books)"),
                       fill="#cccccc", font=fonts["body"])
             y += 35
 
