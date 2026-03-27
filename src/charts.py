@@ -305,3 +305,51 @@ def shared_authors_chart(shared_df: pd.DataFrame, name1: str, name2: str):
     ))
     fig.update_layout(barmode="group", yaxis=dict(autorange="reversed"))
     return _base_layout(fig, "📚 Shared Authors")
+
+
+# ═══════════════════════════════════════════
+# QUOTES CHARTS
+# ═══════════════════════════════════════════
+
+def quotes_per_author_chart(df: pd.DataFrame):
+    """Horizontal bar chart of quotes per author."""
+    fig = px.bar(
+        df, y="Author", x="Quotes", orientation="h",
+        color_discrete_sequence=[COLORS["gold"]],
+    )
+    fig.update_traces(hovertemplate="%{y}: %{x} quotes<extra></extra>")
+    fig.update_layout(yaxis=dict(autorange="reversed"))
+    return _base_layout(fig, "✍️ Quotes per Author")
+
+
+def quote_length_chart(df: pd.DataFrame):
+    """Histogram of quote word counts."""
+    fig = px.histogram(
+        df, x="Word Count", nbins=20,
+        color_discrete_sequence=[COLORS["blue"]],
+        labels={"Word Count": "Words", "count": "Quotes"},
+    )
+    fig.update_traces(hovertemplate="Words: %{x}<br>Quotes: %{y}<extra></extra>")
+    return _base_layout(fig, "📏 Quote Length Distribution")
+
+
+def tags_chart(df: pd.DataFrame):
+    """Bar chart of most common tags."""
+    fig = px.bar(
+        df, x="Count", y="Tag", orientation="h",
+        color_discrete_sequence=[COLORS["teal"]],
+    )
+    fig.update_traces(hovertemplate="%{y}: %{x}<extra></extra>")
+    fig.update_layout(yaxis=dict(autorange="reversed"))
+    return _base_layout(fig, "🏷️ Most Common Tags")
+
+
+def popularity_chart(df: pd.DataFrame):
+    """Histogram of quote popularity scores."""
+    fig = px.histogram(
+        df, x="Popularity", nbins=20,
+        color_discrete_sequence=[COLORS["purple"]],
+        labels={"Popularity": "Popularity Score", "count": "Quotes"},
+    )
+    fig.update_traces(hovertemplate="Popularity: %{x}<br>Quotes: %{y}<extra></extra>")
+    return _base_layout(fig, "📊 Quote Popularity Distribution")
