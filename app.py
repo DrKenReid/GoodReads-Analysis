@@ -690,12 +690,16 @@ with tab_quotes:
                 for i, (_, row) in enumerate(top_pop.iterrows(), 1):
                     q = str(row.get("Quote", ""))[:300]
                     a = str(row.get("Author", ""))
+                    b = str(row.get("Book", ""))
                     pop = int(row.get("Popularity", 0))
+                    attr = f"— {a}"
+                    if b and b != "nan":
+                        attr += f", *{b}*"
                     st.markdown(f"""
                     <div class="quote-card">
                         <div style="color:#f39c12;font-size:12px;margin-bottom:4px;">#{i} · Popularity: {pop:,}</div>
                         <div class="quote-text">"{q}"</div>
-                        <div class="quote-attr">— {a}</div>
+                        <div class="quote-attr">{attr}</div>
                     </div>
                     """, unsafe_allow_html=True)
 
@@ -896,10 +900,6 @@ with tab_quotes:
             export_df = export_df.assign(_len=export_df["Quote"].str.len()).sort_values("_len", ascending=False).drop(columns=["_len"])
         elif sort_order == "Most popular first" and "Popularity" in export_df.columns:
             export_df = export_df.sort_values("Popularity", ascending=False)
-            st.markdown(f"**📦 Exporting all {len(export_df)} quotes**")
-        else:
-            export_df = qdf.loc[qdf.index.isin(selected_indices)]
-            st.markdown(f"**📦 Exporting {len(export_df)} selected quotes** (out of {len(qdf)} total)")
 
         dl1, dl2, dl3, dl4 = st.columns(4)
 
