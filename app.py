@@ -623,11 +623,11 @@ with tab_quotes:
     with st.expander("📋 How to export your GoodReads quotes"):
         st.markdown("""
 **To get your quotes from GoodReads:**
-1. Go to [goodreads.com](https://www.goodreads.com)
-2. Click **My Quotes** (in the navigation or your profile)
-3. Scroll to the very bottom of your quotes page
-4. Click **Export Quotes** to download a CSV
-5. Upload it here!
+1. Go to your [GoodReads profile](https://www.goodreads.com)
+2. Scroll down to the **Quotes** section on your profile page
+3. Click **"Your Name's Quotes"** to see all your saved quotes
+4. At the top right of the page, click **"Export my Quotes"**
+5. Upload the downloaded CSV here!
         """)
 
     # Check if quotes were detected from the reading tab
