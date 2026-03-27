@@ -28,6 +28,8 @@ def load_and_clean(df: pd.DataFrame) -> pd.DataFrame:
         "my review": "My Review",
         "read count": "Read Count",
         "owned copies": "Owned Copies",
+        "book": "Title",  # Quotes CSV uses "Book" instead of "Title"
+        "title": "Title",
     }
     lower_cols = {c.lower(): c for c in df.columns}
     for target_lower, canonical in column_map.items():

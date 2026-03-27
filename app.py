@@ -94,6 +94,19 @@ if df is None:
 # Process data
 df = load_and_clean(df)
 
+# Detect CSV type
+is_quotes_csv = "Goodreads Quote Id" in df.columns or "Quote" in df.columns
+
+if is_quotes_csv:
+    st.warning("⚠️ This looks like a GoodReads **Quotes** export, not your library export.")
+    st.info(
+        "This app works best with your **library export**. To get it:\n\n"
+        "1. Go to [GoodReads → My Books → Import/Export](https://www.goodreads.com/review/import)\n"
+        "2. Click **Export Library**\n"
+        "3. Upload the downloaded CSV here\n\n"
+        "We'll show what we can with the quotes data, but ratings, reading timeline, and most features need the library export."
+    )
+
 # Validate required columns exist
 required_cols = ["Title", "Author"]
 missing = [c for c in required_cols if c not in df.columns]
