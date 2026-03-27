@@ -119,12 +119,29 @@ def generate_pdf(quotes_df, title="My Quotes", theme=None, font="serif",
     if theme is None:
         theme = THEMES["Dark"]
 
+    def _safe(text):
+        """Replace problematic Unicode characters for PDF latin-1 compatibility."""
+        text = str(text)
+        text = text.replace("\u2014", "--")
+        text = text.replace("\u2013", "-")
+        text = text.replace("\u2018", "'")
+        text = text.replace("\u2019", "'")
+        text = text.replace("\u201c", '"')
+        text = text.replace("\u201d", '"')
+        text = text.replace("\u2026", "...")
+        text = text.replace("\u00a0", " ")
+        text = text.replace("\u2012", "-")
+        text = text.replace("\u2015", "--")
+        text = text.replace("\u2032", "'")
+        text = text.replace("\u2033", '"')
+        return text.encode("latin-1", errors="replace").decode("latin-1")
+
     class QuotePDF(FPDF):
         def header(self):
             if self.page_no() > 1:
                 self.set_font("Helvetica", "I", 8)
                 self.set_text_color(150, 150, 150)
-                self.cell(0, 10, title, align="C")
+                self.cell(0, 10, _safe(title), align="C")
                 self.ln(5)
 
         def footer(self):
@@ -149,7 +166,7 @@ def generate_pdf(quotes_df, title="My Quotes", theme=None, font="serif",
     pdf.ln(60)
     pdf.set_font("Helvetica", "B", 28)
     pdf.set_text_color(ar, ag, ab)
-    pdf.cell(0, 15, title, align="C")
+    pdf.cell(0, 15, _safe(title), align="C")
     pdf.ln(15)
     pdf.set_font("Helvetica", "", 14)
     pdf.set_text_color(150, 150, 150)
@@ -159,31 +176,30 @@ def generate_pdf(quotes_df, title="My Quotes", theme=None, font="serif",
     pdf.cell(0, 10, f"{unique_authors} authors", align="C")
 
     # Quotes
-    font_family = "Helvetica"  # fpdf2 built-in
+    font_family = "Helvetica"
     for _, row in quotes_df.iterrows():
         pdf.add_page()
 
         # Quote text
         pdf.set_font(font_family, "", 12)
         pdf.set_text_color(60, 60, 60)
-        quote_text = str(row.get("Quote", ""))
-        # Wrap in quotes
+        quote_text = _safe(row.get("Quote", ""))
         pdf.multi_cell(0, 7, f'"{quote_text}"')
         pdf.ln(5)
 
         # Attribution
-        author = str(row.get("Author", "")) if "Author" in row.index else ""
-        book = str(row.get("Book", "")) if include_books and "Book" in row.index else ""
+        author = _safe(row.get("Author", "")) if "Author" in row.index else ""
+        book = _safe(row.get("Book", "")) if include_books and "Book" in row.index else ""
         attr_parts = [p for p in [author, book] if p and p != "nan"]
         if attr_parts:
             pdf.set_font(font_family, "I", 11)
             pdf.set_text_color(ar, ag, ab)
-            pdf.cell(0, 8, f"— {', '.join(attr_parts)}")
+            pdf.cell(0, 8, f"-- {', '.join(attr_parts)}")
             pdf.ln(5)
 
         # Tags
         if include_tags and "Tags" in row.index:
-            tags = str(row.get("Tags", ""))
+            tags = _safe(row.get("Tags", ""))
             if tags and tags != "nan":
                 pdf.set_font(font_family, "", 9)
                 pdf.set_text_color(150, 150, 150)
