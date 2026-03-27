@@ -539,102 +539,150 @@ if shame["count"] > 0:
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 st.markdown("## 📸 Reading Summary Card")
 
+card_sections = st.multiselect(
+    "Choose sections to include on your card:",
+    options=["Reading Personality", "Key Stats", "Top Books", "Genre Tags", "Fun Page Facts", "Author Stats"],
+    default=["Reading Personality", "Key Stats", "Top Books", "Genre Tags"],
+)
 
-def generate_summary_card(title_text, emoji_char, stats_dict, top_loved, tags_list):
-    """Generate a downloadable summary card using Pillow."""
-    width, height = 800, 1000
+
+def _load_fonts():
+    """Load DejaVu fonts with fallbacks. Sizes: title=32, subtitle=22, stats=20, body=18, small=14."""
+    sizes = {"title": 32, "subtitle": 22, "stats": 20, "body": 18, "small": 14}
+    fonts = {}
+    for name, sz in sizes.items():
+        bold = name == "title"
+        for path in [
+            f"/usr/share/fonts/truetype/dejavu/DejaVuSans{'-Bold' if bold else ''}.ttf",
+            f"C:/Windows/Fonts/{'arialbd.ttf' if bold else 'arial.ttf'}",
+        ]:
+            try:
+                fonts[name] = ImageFont.truetype(path, sz)
+                break
+            except (OSError, IOError):
+                continue
+        if name not in fonts:
+            fonts[name] = ImageFont.load_default(size=sz)
+    return fonts
+
+
+def generate_summary_card(title_text, emoji_char, stats_dict, top_loved, tags_list,
+                          sections, authors_df, page_facts):
+    """Generate a downloadable summary card with dynamic height based on selected sections."""
+    width = 900
+    fonts = _load_fonts()
+
+    # Calculate dynamic height
+    y = 120  # header + padding
+    if "Reading Personality" in sections:
+        y += 80
+    if "Key Stats" in sections:
+        y += 4 * 50 + 40
+    if "Top Books" in sections and len(top_loved) > 0:
+        y += 40 + min(len(top_loved), 3) * 35
+    if "Genre Tags" in sections and tags_list:
+        y += 40 + min(len(tags_list), 4) * 35
+    if "Fun Page Facts" in sections and page_facts:
+        y += 40 + min(len(page_facts), 3) * 35
+    if "Author Stats" in sections and len(authors_df) > 0:
+        y += 40 + min(len(authors_df), 5) * 35
+    y += 60  # footer
+
+    height = max(y, 400)
     img = Image.new("RGB", (width, height), color="#0e1117")
     draw = ImageDraw.Draw(img)
 
-    # Try to use a nice font, fall back to default
-    try:
-        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
-        font_subtitle = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
-        font_stats = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
-        font_game = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
-        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
-    except (OSError, IOError):
-        try:
-            font_title = ImageFont.truetype("arial.ttf", 28)
-            font_subtitle = ImageFont.truetype("arial.ttf", 20)
-            font_stats = ImageFont.truetype("arial.ttf", 18)
-            font_game = ImageFont.truetype("arial.ttf", 16)
-            font_small = ImageFont.truetype("arial.ttf", 14)
-        except (OSError, IOError):
-            font_title = ImageFont.load_default(size=28)
-            font_subtitle = ImageFont.load_default(size=20)
-            font_stats = ImageFont.load_default(size=18)
-            font_game = ImageFont.load_default(size=16)
-            font_small = ImageFont.load_default(size=14)
-    font_emoji = font_title  # Use title font for emoji placeholder
-
-    # Background gradient effect (simple rectangles)
+    # Background gradient
     for i in range(height):
         r = int(14 + (26 - 14) * i / height)
         g = int(17 + (26 - 17) * i / height)
         b = int(23 + (46 - 23) * i / height)
         draw.line([(0, i), (width, i)], fill=(r, g, b))
 
-    # Border
     draw.rectangle([(10, 10), (width - 10, height - 10)], outline="#e74c3c", width=2)
 
     # Header
-    draw.text((width // 2, 50), "📚 GoodReads Reading Stats", fill="#f39c12",
-              font=font_title, anchor="mt")
+    draw.text((width // 2, 50), "GoodReads Reading Stats", fill="#f39c12",
+              font=fonts["title"], anchor="mt")
 
-    # Personality
-    y = 130
-    draw.text((width // 2, y), title_text, fill="#f39c12", font=font_title, anchor="mt")
-    y += 50
+    y = 120
 
-    # Stats
-    y += 60
-    stat_items = [
-        ("Books Read", f"{stats_dict['total_books']:,}"),
-        ("Total Pages", f"{stats_dict['total_pages']:,}"),
-        ("Avg Rating", f"⭐ {stats_dict['avg_rating']}"),
-        ("Avg Pages/Book", f"{stats_dict['avg_pages']:,}"),
-    ]
+    # Reading Personality
+    if "Reading Personality" in sections:
+        draw.text((width // 2, y), f"{emoji_char} {title_text}", fill="#f39c12",
+                  font=fonts["title"], anchor="mt")
+        y += 80
 
-    for label, value in stat_items:
-        draw.text((100, y), label, fill="#888888", font=font_stats)
-        draw.text((420, y), str(value), fill="#fafafa", font=font_stats)
-        y += 45
+    # Key Stats
+    if "Key Stats" in sections:
+        draw.text((100, y), "Key Stats", fill="#f39c12", font=fonts["subtitle"])
+        y += 40
+        for label, value in [
+            ("Books Read", f"{stats_dict['total_books']:,}"),
+            ("Total Pages", f"{stats_dict['total_pages']:,}"),
+            ("Avg Rating", f"{stats_dict['avg_rating']}"),
+            ("Avg Pages/Book", f"{stats_dict['avg_pages']:,}"),
+        ]:
+            draw.text((120, y), label, fill="#888888", font=fonts["stats"])
+            draw.text((480, y), str(value), fill="#fafafa", font=fonts["stats"])
+            y += 50
 
-    # Top books
-    if len(top_loved) > 0:
-        y += 30
-        draw.text((100, y), "Books You Loved Most:", fill="#f39c12", font=font_subtitle)
-        y += 35
+    # Top Books
+    if "Top Books" in sections and len(top_loved) > 0:
+        draw.text((100, y), "Books You Loved Most", fill="#f39c12", font=fonts["subtitle"])
+        y += 40
         for _, row in top_loved.head(3).iterrows():
-            title_str = str(row.get("Title", "?"))[:50]
-            draw.text((120, y), f"• {title_str}", fill="#cccccc", font=font_game)
-            y += 30
+            title_str = str(row.get("Title", "?"))[:55]
+            draw.text((120, y), f"• {title_str}", fill="#cccccc", font=fonts["body"])
+            y += 35
 
-    # Genre tags
-    if tags_list:
-        y += 30
-        draw.text((100, y), "Your Genres:", fill="#f39c12", font=font_subtitle)
-        y += 35
+    # Genre Tags
+    if "Genre Tags" in sections and tags_list:
+        draw.text((100, y), "Your Genres", fill="#f39c12", font=fonts["subtitle"])
+        y += 40
         for tag in tags_list[:4]:
-            draw.text((120, y), tag, fill="#cccccc", font=font_game)
-            y += 30
+            draw.text((120, y), tag, fill="#cccccc", font=fonts["body"])
+            y += 35
+
+    # Fun Page Facts
+    if "Fun Page Facts" in sections and page_facts:
+        draw.text((100, y), "Fun Page Facts", fill="#f39c12", font=fonts["subtitle"])
+        y += 40
+        for fact in page_facts[:3]:
+            # Strip markdown bold markers for the card
+            clean = fact.replace("**", "").replace("*", "")
+            if len(clean) > 70:
+                clean = clean[:67] + "..."
+            draw.text((120, y), clean, fill="#cccccc", font=fonts["body"])
+            y += 35
+
+    # Author Stats
+    if "Author Stats" in sections and len(authors_df) > 0:
+        draw.text((100, y), "Top Authors", fill="#f39c12", font=fonts["subtitle"])
+        y += 40
+        for _, row in authors_df.head(5).iterrows():
+            draw.text((120, y), f"• {row['Author']} ({row['Books']} books)",
+                      fill="#cccccc", font=fonts["body"])
+            y += 35
 
     # Footer
     draw.text((width // 2, height - 40), "goodreads-reading-stats.streamlit.app",
-              fill="#555555", font=font_small, anchor="mt")
+              fill="#555555", font=fonts["small"], anchor="mt")
 
     return img
 
 
 loved_for_card = books_you_loved(df)
-card = generate_summary_card(title, emoji, stats, loved_for_card, tags)
+authors_for_card = top_authors(df)
+page_facts_for_card = fun_page_facts(stats["total_pages"]) if stats["total_pages"] > 0 else []
+card = generate_summary_card(title, emoji, stats, loved_for_card, tags,
+                             card_sections, authors_for_card, page_facts_for_card)
 
 buf = BytesIO()
 card.save(buf, format="PNG")
 buf.seek(0)
 
-st.image(card, use_container_width=False, width=400)
+st.image(card, use_container_width=False, width=450)
 st.download_button(
     label="📥 Download Summary Card",
     data=buf.getvalue(),

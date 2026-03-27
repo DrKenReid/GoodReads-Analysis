@@ -263,6 +263,27 @@ def top_authors(df: pd.DataFrame, n: int = 20) -> pd.DataFrame:
     return counts
 
 
+def _clean_genre_label(label: str) -> str:
+    """Clean up a genre label: replace hyphens, title case, merge common duplicates."""
+    # Common merge mappings (applied after normalization)
+    _GENRE_MERGES = {
+        "Sci Fi": "Science Fiction",
+        "Scifi": "Science Fiction",
+        "Ya": "Young Adult",
+        "Non Fiction": "Non-Fiction",
+        "Nonfiction": "Non-Fiction",
+        "Selfhelp": "Self-Help",
+        "Self Help": "Self-Help",
+        "Graphic Novels": "Graphic Novel",
+        "Hist Fiction": "Historical Fiction",
+        "Lit Fic": "Literary Fiction",
+    }
+    # Replace hyphens with spaces, title-case
+    label = label.replace("-", " ").strip().title()
+    # Apply merge mappings
+    return _GENRE_MERGES.get(label, label)
+
+
 def genre_breakdown(df: pd.DataFrame) -> pd.DataFrame:
     """Genre breakdown — prefers enhanced CSV 'genres' column (semicolon-delimited),
     then tries genre_1/genre_2/genre_3 columns, falls back to Bookshelves."""
@@ -273,7 +294,7 @@ def genre_breakdown(df: pd.DataFrame) -> pd.DataFrame:
         genre_counts = {}
         for val in read["genres"].dropna():
             for g in str(val).split(";"):
-                g = g.strip().title()
+                g = _clean_genre_label(g)
                 if g and len(g) > 1:
                     genre_counts[g] = genre_counts.get(g, 0) + 1
         if genre_counts:
@@ -286,7 +307,7 @@ def genre_breakdown(df: pd.DataFrame) -> pd.DataFrame:
         genre_counts = {}
         for col in genre_cols:
             for val in read[col].dropna():
-                g = str(val).strip().title()
+                g = _clean_genre_label(str(val))
                 if g and len(g) > 1:
                     genre_counts[g] = genre_counts.get(g, 0) + 1
         if genre_counts:
@@ -304,7 +325,8 @@ def genre_breakdown(df: pd.DataFrame) -> pd.DataFrame:
     for shelves in read["_shelves"]:
         for s in shelves:
             if s not in skip and len(s) > 1:
-                genre_counts[s.title()] = genre_counts.get(s.title(), 0) + 1
+                cleaned = _clean_genre_label(s)
+                genre_counts[cleaned] = genre_counts.get(cleaned, 0) + 1
 
     if not genre_counts:
         return pd.DataFrame()

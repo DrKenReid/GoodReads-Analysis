@@ -17,7 +17,12 @@ COLORS = {
 }
 PALETTE = ["#e74c3c", "#3498db", "#2ecc71", "#f39c12", "#9b59b6", "#1abc9c"]
 BG_COLOR = "#0e1117"
-PLOT_CONFIG = {"displayModeBar": True, "toImageButtonOptions": {"format": "png", "scale": 2}}
+PLOT_CONFIG = {
+    "displayModeBar": True,
+    "modeBarButtonsToRemove": ["zoom2d", "pan2d", "select2d", "lasso2d", "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d"],
+    "toImageButtonOptions": {"format": "png", "height": 700, "width": 1200, "scale": 2},
+    "displaylogo": False,
+}
 
 
 def _base_layout(fig, title=""):
