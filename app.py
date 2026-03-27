@@ -571,6 +571,9 @@ def _load_fonts():
     fonts["emoji"] = None
     for path in [
         "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
+        "/usr/share/fonts/truetype/noto-color-emoji/NotoColorEmoji.ttf",
+        "/usr/share/fonts/noto-color-emoji/NotoColorEmoji.ttf",
+        "/usr/share/fonts/truetype/google-noto/NotoColorEmoji.ttf",
         "C:/Windows/Fonts/seguiemj.ttf",
     ]:
         try:
@@ -626,8 +629,15 @@ def generate_summary_card(title_text, emoji_char, stats_dict, top_loved, tags_li
     if "Reading Personality" in sections:
         # Draw emoji if emoji font available
         if fonts.get("emoji"):
-            draw.text((width // 2, y), emoji_char, fill="#f39c12",
-                      font=fonts["emoji"], anchor="mt", embedded_color=True)
+            try:
+                draw.text((width // 2, y), emoji_char, font=fonts["emoji"],
+                          anchor="mt", embedded_color=True)
+            except (TypeError, OSError):
+                try:
+                    draw.text((width // 2, y), emoji_char, fill="#f39c12",
+                              font=fonts["emoji"], anchor="mt")
+                except Exception:
+                    pass
             y += 60
         draw.text((width // 2, y), title_text, fill="#f39c12",
                   font=fonts["title"], anchor="mt")
