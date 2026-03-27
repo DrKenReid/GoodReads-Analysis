@@ -609,7 +609,8 @@ def generate_summary_card(title_text, emoji_char, stats_dict, top_loved, tags_li
 
     # Reading Personality
     if "Reading Personality" in sections:
-        draw.text((width // 2, y), f"{emoji_char} {title_text}", fill="#f39c12",
+        # Strip emoji from personality text (DejaVu can't render emoji)
+        draw.text((width // 2, y), title_text, fill="#f39c12",
                   font=fonts["title"], anchor="mt")
         y += 80
 
@@ -666,7 +667,7 @@ def generate_summary_card(title_text, emoji_char, stats_dict, top_loved, tags_li
             y += 35
 
     # Footer
-    draw.text((width // 2, height - 40), "goodreads-reading-stats.streamlit.app",
+    draw.text((width // 2, height - 40), "goodreads-analysis.streamlit.app",
               fill="#555555", font=fonts["small"], anchor="mt")
 
     return img
@@ -682,13 +683,15 @@ buf = BytesIO()
 card.save(buf, format="PNG")
 buf.seek(0)
 
-st.image(card, use_container_width=False, width=450)
-st.download_button(
-    label="📥 Download Summary Card",
-    data=buf.getvalue(),
-    file_name="goodreads_reading_stats.png",
-    mime="image/png",
-)
+col_card_l, col_card_c, col_card_r = st.columns([1, 3, 1])
+with col_card_c:
+    st.image(card, width=700)
+    st.download_button(
+        label="📥 Download Summary Card",
+        data=buf.getvalue(),
+        file_name="goodreads_reading_stats.png",
+        mime="image/png",
+    )
 
 # Footer
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
