@@ -722,12 +722,52 @@ with tab_quotes:
         """, unsafe_allow_html=True)
 
         # ═══════════════════════════════════════════
-        # BROWSE & FILTER QUOTES
+        # VISUALIZATIONS
         # ═══════════════════════════════════════════
         st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-        st.markdown("## 🔍 Browse & Select Quotes")
+        st.markdown("## 📈 Quote Insights")
 
-        # Filters
+        author_data = quotes_by_author(qdf)
+        if len(author_data) > 0:
+            st.plotly_chart(quotes_per_author_chart(author_data), use_container_width=True, config=PLOT_CONFIG)
+
+        viz1, viz2 = st.columns(2)
+        length_data = quote_length_stats(qdf)
+        if len(length_data) > 0:
+            with viz1:
+                st.plotly_chart(quote_length_chart(length_data), use_container_width=True, config=PLOT_CONFIG)
+        if "Popularity" in qdf.columns and qdf["Popularity"].sum() > 0:
+            with viz2:
+                st.plotly_chart(popularity_chart(qdf), use_container_width=True, config=PLOT_CONFIG)
+
+        tc = tag_counts(qdf)
+        if len(tc) > 0:
+            st.plotly_chart(tags_chart(tc), use_container_width=True, config=PLOT_CONFIG)
+
+        # BROWSE, SELECT & EXPORT QUOTES
+        # ═══════════════════════════════════════════
+        st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+        st.markdown("## 📥 Select & Export Quotes")
+        st.caption("Filter, select the quotes you want, customize the look, then download.")
+
+        # ── Theme & Style Options ──
+        style_col1, style_col2 = st.columns(2)
+        with style_col1:
+            export_title = st.text_input("Export title", value="My GoodReads Quotes", key="export_title")
+            theme_name = st.selectbox("Theme preset", list(THEMES.keys()), key="export_theme")
+            accent_color = st.color_picker("Accent color", value=THEMES[theme_name]["accent"], key="export_accent")
+        with style_col2:
+            font_style = st.radio("Font style", ["Serif", "Sans-Serif"], horizontal=True, key="export_font")
+            include_tags = st.checkbox("Include tags", value=True, key="export_tags")
+            include_books = st.checkbox("Include book titles", value=True, key="export_books")
+
+        # Build theme
+        export_theme = THEMES[theme_name].copy()
+        export_theme["accent"] = accent_color
+
+        st.markdown("---")
+
+        # ── Filter & Select ──
         fcol1, fcol2, fcol3 = st.columns(3)
         with fcol1:
             all_authors = sorted(qdf["Author"].dropna().unique().tolist()) if "Author" in qdf.columns else []
@@ -751,8 +791,6 @@ with tab_quotes:
                 mask = mask | filtered["Tags"].astype(str).str.contains(search_text, case=False, na=False)
             filtered = filtered[mask]
 
-        st.markdown(f"**{len(filtered)}** quotes shown")
-
         # Select all / deselect all
         sel_col1, sel_col2, sel_col3 = st.columns([1, 1, 4])
         with sel_col1:
@@ -763,12 +801,13 @@ with tab_quotes:
             if st.button("❌ Deselect All", key="q_deselect_all"):
                 st.session_state["q_selected"] = set()
                 st.rerun()
-        with sel_col3:
-            selected_count = len(st.session_state.get("q_selected", set()))
-            st.caption(f"**{selected_count}** of {len(filtered)} quotes selected for export")
 
         if "q_selected" not in st.session_state:
             st.session_state["q_selected"] = set(filtered.index.tolist())
+
+        selected_count = len(st.session_state.get("q_selected", set()))
+        with sel_col3:
+            st.caption(f"**{selected_count}** of {len(filtered)} quotes selected for export")
 
         # Display table with selection checkboxes
         display_cols = [c for c in ["Quote", "Author", "Book", "Tags"] if c in filtered.columns]
@@ -789,74 +828,24 @@ with tab_quotes:
                 key="quotes_table",
             )
 
-            # Update selection based on checkboxes
             if edited_df is not None:
                 selected_mask = edited_df["✅ Export"].tolist()
                 st.session_state["q_selected"] = set(
                     idx for idx, sel in zip(filtered.index, selected_mask) if sel
                 )
 
-        # ═══════════════════════════════════════════
-        # VISUALIZATIONS
-        # ═══════════════════════════════════════════
-        st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-        st.markdown("## 📈 Visualizations")
+        st.markdown("---")
 
-        # Quotes per author
-        author_data = quotes_by_author(qdf)
-        if len(author_data) > 0:
-            st.plotly_chart(quotes_per_author_chart(author_data), use_container_width=True, config=PLOT_CONFIG)
-
-        viz1, viz2 = st.columns(2)
-
-        # Quote length distribution
-        length_data = quote_length_stats(qdf)
-        if len(length_data) > 0:
-            with viz1:
-                st.plotly_chart(quote_length_chart(length_data), use_container_width=True, config=PLOT_CONFIG)
-
-        # Popularity distribution
-        if "Popularity" in qdf.columns and qdf["Popularity"].sum() > 0:
-            with viz2:
-                st.plotly_chart(popularity_chart(qdf), use_container_width=True, config=PLOT_CONFIG)
-
-        # Tags chart
-        tc = tag_counts(qdf)
-        if len(tc) > 0:
-            st.plotly_chart(tags_chart(tc), use_container_width=True, config=PLOT_CONFIG)
-
-        # ═══════════════════════════════════════════
-        # EXPORT / DOWNLOAD
-        # ═══════════════════════════════════════════
-        st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-        st.markdown("## 📥 Export Quotes")
-
-        exp_col1, exp_col2 = st.columns(2)
-
-        with exp_col1:
-            export_title = st.text_input("Export title", value="My GoodReads Quotes", key="export_title")
-            theme_name = st.selectbox("Theme preset", list(THEMES.keys()), key="export_theme")
-            accent_color = st.color_picker("Accent color", value=THEMES[theme_name]["accent"], key="export_accent")
-            font_style = st.radio("Font style", ["Serif", "Sans-Serif"], horizontal=True, key="export_font")
-
-        with exp_col2:
-            include_tags = st.checkbox("Include tags", value=True, key="export_tags")
-            include_books = st.checkbox("Include book titles", value=True, key="export_books")
-            include_popularity = st.checkbox("Include popularity scores", value=False, key="export_pop")
-            export_all = st.checkbox("Export ALL quotes (ignore selection)", value=False, key="export_all")
-
-        # Build theme with custom accent
-        export_theme = THEMES[theme_name].copy()
-        export_theme["accent"] = accent_color
-
-        # Use selected quotes by default, all if checkbox ticked
+        # ── Download ──
         selected_indices = st.session_state.get("q_selected", set())
+        export_all = st.checkbox("Export ALL quotes (ignore selection)", value=False, key="export_all")
+
         if export_all or not selected_indices:
             export_df = qdf
-            st.markdown(f"**Exporting all {len(export_df)} quotes**")
+            st.markdown(f"**📦 Exporting all {len(export_df)} quotes**")
         else:
             export_df = qdf.loc[qdf.index.isin(selected_indices)]
-            st.markdown(f"**Exporting {len(export_df)} selected quotes** (out of {len(qdf)} total)")
+            st.markdown(f"**📦 Exporting {len(export_df)} selected quotes** (out of {len(qdf)} total)")
 
         dl1, dl2, dl3, dl4 = st.columns(4)
 
