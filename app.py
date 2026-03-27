@@ -534,19 +534,25 @@ def generate_summary_card(title_text, emoji_char, stats_dict, top_loved, tags_li
 
     # Try to use a nice font, fall back to default
     try:
-        font_title = ImageFont.truetype("arial.ttf", 28)
-        font_subtitle = ImageFont.truetype("arial.ttf", 18)
-        font_stats = ImageFont.truetype("arial.ttf", 18)
-        font_game = ImageFont.truetype("arial.ttf", 16)
-        font_small = ImageFont.truetype("arial.ttf", 14)
-        font_emoji = ImageFont.truetype("seguiemj.ttf", 80)
+        font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
+        font_subtitle = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
+        font_stats = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
+        font_game = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
+        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 14)
     except (OSError, IOError):
-        font_title = ImageFont.load_default()
-        font_subtitle = font_title
-        font_stats = font_title
-        font_game = font_title
-        font_small = font_title
-        font_emoji = font_title
+        try:
+            font_title = ImageFont.truetype("arial.ttf", 28)
+            font_subtitle = ImageFont.truetype("arial.ttf", 20)
+            font_stats = ImageFont.truetype("arial.ttf", 18)
+            font_game = ImageFont.truetype("arial.ttf", 16)
+            font_small = ImageFont.truetype("arial.ttf", 14)
+        except (OSError, IOError):
+            font_title = ImageFont.load_default(size=28)
+            font_subtitle = ImageFont.load_default(size=20)
+            font_stats = ImageFont.load_default(size=18)
+            font_game = ImageFont.load_default(size=16)
+            font_small = ImageFont.load_default(size=14)
+    font_emoji = font_title  # Use title font for emoji placeholder
 
     # Background gradient effect (simple rectangles)
     for i in range(height):
@@ -564,9 +570,8 @@ def generate_summary_card(title_text, emoji_char, stats_dict, top_loved, tags_li
 
     # Personality
     y = 130
-    draw.text((width // 2, y), emoji_char, fill="#ffffff", font=font_emoji, anchor="mt")
-    y += 100
-    draw.text((width // 2, y), title_text, fill="#f39c12", font=font_subtitle, anchor="mt")
+    draw.text((width // 2, y), title_text, fill="#f39c12", font=font_title, anchor="mt")
+    y += 50
 
     # Stats
     y += 60
