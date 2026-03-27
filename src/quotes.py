@@ -113,96 +113,148 @@ def tag_counts(df: pd.DataFrame) -> pd.DataFrame:
 
 def generate_pdf(quotes_df, title="My Quotes", theme=None, font="serif",
                  include_tags=True, include_books=True):
-    """Generate a styled PDF of quotes. Returns bytes."""
+    """Generate a beautifully styled PDF of quotes. Returns bytes."""
     from fpdf import FPDF
 
     if theme is None:
         theme = THEMES["Dark"]
 
     def _safe(text):
-        """Replace problematic Unicode characters for PDF latin-1 compatibility."""
+        """Replace problematic Unicode for latin-1."""
         text = str(text)
-        text = text.replace("\u2014", "--")
-        text = text.replace("\u2013", "-")
-        text = text.replace("\u2018", "'")
-        text = text.replace("\u2019", "'")
-        text = text.replace("\u201c", '"')
-        text = text.replace("\u201d", '"')
-        text = text.replace("\u2026", "...")
-        text = text.replace("\u00a0", " ")
-        text = text.replace("\u2012", "-")
-        text = text.replace("\u2015", "--")
-        text = text.replace("\u2032", "'")
-        text = text.replace("\u2033", '"')
+        for old, new in [
+            ("\u2014", "--"), ("\u2013", "-"), ("\u2018", "'"), ("\u2019", "'"),
+            ("\u201c", '"'), ("\u201d", '"'), ("\u2026", "..."), ("\u00a0", " "),
+            ("\u2012", "-"), ("\u2015", "--"), ("\u2032", "'"), ("\u2033", '"'),
+        ]:
+            text = text.replace(old, new)
         return text.encode("latin-1", errors="replace").decode("latin-1")
 
+    def _hex(color):
+        """Parse hex color to (r, g, b) tuple."""
+        color = color.lstrip("#")
+        try:
+            return int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16)
+        except (ValueError, IndexError):
+            return (200, 200, 200)
+
+    bg_r, bg_g, bg_b = _hex(theme.get("bg", "#1a1a2e"))
+    text_r, text_g, text_b = _hex(theme.get("text", "#e0e0e0"))
+    accent_r, accent_g, accent_b = _hex(theme.get("accent", "#e74c3c"))
+    quote_r, quote_g, quote_b = _hex(theme.get("quote", "#f39c12"))
+
     class QuotePDF(FPDF):
+        def _draw_bg(self):
+            """Fill page with background color."""
+            self.set_fill_color(bg_r, bg_g, bg_b)
+            self.rect(0, 0, self.w, self.h, "F")
+
         def header(self):
+            self._draw_bg()
             if self.page_no() > 1:
                 self.set_font("Helvetica", "I", 8)
-                self.set_text_color(150, 150, 150)
+                self.set_text_color(text_r, text_g, text_b)
+                self.set_y(8)
                 self.cell(0, 10, _safe(title), align="C")
-                self.ln(5)
 
         def footer(self):
             self.set_y(-15)
-            self.set_font("Helvetica", "I", 8)
-            self.set_text_color(150, 150, 150)
+            self.set_font("Helvetica", "", 8)
+            self.set_text_color(text_r, text_g, text_b)
             self.cell(0, 10, f"Page {self.page_no()}/{{nb}}", align="C")
 
     pdf = QuotePDF()
     pdf.alias_nb_pages()
-    pdf.set_auto_page_break(auto=True, margin=20)
+    pdf.set_auto_page_break(auto=True, margin=25)
 
-    # Parse accent color
-    accent = theme.get("accent", "#e74c3c")
-    try:
-        ar, ag, ab = int(accent[1:3], 16), int(accent[3:5], 16), int(accent[5:7], 16)
-    except (ValueError, IndexError):
-        ar, ag, ab = 231, 76, 60
-
-    # Title page
+    # ─── Title Page ──────────────────────────────────────────────
     pdf.add_page()
-    pdf.ln(60)
-    pdf.set_font("Helvetica", "B", 28)
-    pdf.set_text_color(ar, ag, ab)
-    pdf.cell(0, 15, _safe(title), align="C")
-    pdf.ln(15)
-    pdf.set_font("Helvetica", "", 14)
-    pdf.set_text_color(150, 150, 150)
-    pdf.cell(0, 10, f"{len(quotes_df)} quotes", align="C")
-    pdf.ln(5)
-    unique_authors = quotes_df["Author"].nunique() if "Author" in quotes_df.columns else 0
-    pdf.cell(0, 10, f"{unique_authors} authors", align="C")
+    pdf.ln(70)
 
-    # Quotes
-    font_family = "Helvetica"
-    for _, row in quotes_df.iterrows():
+    # Decorative line
+    pdf.set_draw_color(accent_r, accent_g, accent_b)
+    pdf.set_line_width(0.8)
+    pdf.line(60, 75, pdf.w - 60, 75)
+
+    pdf.set_font("Helvetica", "B", 36)
+    pdf.set_text_color(accent_r, accent_g, accent_b)
+    pdf.cell(0, 18, _safe(title), align="C")
+    pdf.ln(20)
+
+    pdf.set_font("Helvetica", "", 16)
+    pdf.set_text_color(text_r, text_g, text_b)
+    pdf.cell(0, 10, f"{len(quotes_df)} quotes collected", align="C")
+    pdf.ln(8)
+
+    unique_authors = quotes_df["Author"].nunique() if "Author" in quotes_df.columns else 0
+    pdf.set_font("Helvetica", "I", 13)
+    pdf.cell(0, 10, f"from {unique_authors} authors", align="C")
+    pdf.ln(30)
+
+    # Decorative line
+    pdf.line(60, pdf.get_y(), pdf.w - 60, pdf.get_y())
+
+    # ─── Quotes ──────────────────────────────────────────────────
+    for idx, (_, row) in enumerate(quotes_df.iterrows()):
         pdf.add_page()
 
+        # Top accent bar
+        pdf.set_fill_color(accent_r, accent_g, accent_b)
+        pdf.rect(20, 25, 3, 40, "F")
+
+        # Quote number
+        pdf.set_y(22)
+        pdf.set_x(30)
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_text_color(accent_r, accent_g, accent_b)
+        pdf.cell(0, 5, f"#{idx + 1}")
+
+        # Opening quote mark
+        pdf.set_y(28)
+        pdf.set_x(28)
+        pdf.set_font("Helvetica", "B", 48)
+        pdf.set_text_color(quote_r, quote_g, quote_b)
+        pdf.cell(20, 20, '"')
+
         # Quote text
-        pdf.set_font(font_family, "", 12)
-        pdf.set_text_color(60, 60, 60)
+        pdf.set_y(50)
+        pdf.set_x(30)
+        pdf.set_font("Helvetica", "", 13)
+        pdf.set_text_color(text_r, text_g, text_b)
         quote_text = _safe(row.get("Quote", ""))
-        pdf.multi_cell(0, 7, f'"{quote_text}"')
-        pdf.ln(5)
+        pdf.multi_cell(pdf.w - 60, 8, quote_text)
+        pdf.ln(8)
+
+        # Decorative separator
+        sep_y = pdf.get_y()
+        pdf.set_draw_color(accent_r, accent_g, accent_b)
+        pdf.set_line_width(0.4)
+        pdf.line(30, sep_y, 80, sep_y)
+        pdf.ln(6)
 
         # Attribution
         author = _safe(row.get("Author", "")) if "Author" in row.index else ""
         book = _safe(row.get("Book", "")) if include_books and "Book" in row.index else ""
-        attr_parts = [p for p in [author, book] if p and p != "nan"]
-        if attr_parts:
-            pdf.set_font(font_family, "I", 11)
-            pdf.set_text_color(ar, ag, ab)
-            pdf.cell(0, 8, f"-- {', '.join(attr_parts)}")
-            pdf.ln(5)
+        if author and author != "nan":
+            pdf.set_x(30)
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.set_text_color(accent_r, accent_g, accent_b)
+            pdf.cell(0, 7, f"-- {author}")
+            pdf.ln(6)
+        if book and book != "nan":
+            pdf.set_x(30)
+            pdf.set_font("Helvetica", "I", 11)
+            pdf.set_text_color(quote_r, quote_g, quote_b)
+            pdf.cell(0, 7, book)
+            pdf.ln(6)
 
         # Tags
         if include_tags and "Tags" in row.index:
             tags = _safe(row.get("Tags", ""))
             if tags and tags != "nan":
-                pdf.set_font(font_family, "", 9)
-                pdf.set_text_color(150, 150, 150)
+                pdf.set_x(30)
+                pdf.set_font("Helvetica", "", 9)
+                pdf.set_text_color(int(text_r * 0.6), int(text_g * 0.6), int(text_b * 0.6))
                 pdf.cell(0, 6, f"Tags: {tags}")
 
     buf = io.BytesIO()
