@@ -35,8 +35,18 @@ The ML models here yield modest accuracy — by design. Book ratings and reading
 
 ## Related
 
-- [GoodReads-Quotes-PDF](https://github.com/DrKenReid/GoodReads-Quotes-PDF) — export and visualise your highlighted GoodReads quotes as a formatted PDF
+- [Enhance-GoodReads-Export](https://github.com/DrKenReid/Enhance-GoodReads-Export) — enrich your GoodReads CSV with genres and reading dates
+- [GoodReads-Quotes-PDF](https://github.com/DrKenReid/GoodReads-Quotes-PDF) — export and visualise your highlighted quotes as a formatted PDF
+- [kenreid.co.uk/literature](https://www.kenreid.co.uk/literature.html) — reading stats, reviews, and quotes on my website
 
 ## License
 
-This project is licensed under [CC BY 4.0](LICENSE). Issues and forks welcome — just link back to this repo.
+This project is licensed under [CC BY 4.0](LICENSE).
+
+## Author
+
+**Ken Reid** — Data Scientist, photographer, and avid reader.
+
+- [kenreid.co.uk](https://www.kenreid.co.uk) — Portfolio & blog
+- [@kenreid.co.uk](https://bsky.app/profile/kenreid.co.uk) — Bluesky
+- [@DrKenReid](https://github.com/DrKenReid) — GitHub
