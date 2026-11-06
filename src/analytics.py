@@ -37,6 +37,13 @@ def load_and_clean(df: pd.DataFrame) -> pd.DataFrame:
         if canonical not in df.columns and target_lower in lower_cols:
             df.rename(columns={lower_cols[target_lower]: canonical}, inplace=True)
 
+    # Goodreads dropped "Average Rating" from its CSV export in 2025; the
+    # enhanced export carries it as "average_rating". With neither, keep an
+    # empty column so the community comparisons report no data instead of
+    # raising KeyError.
+    if "Average Rating" not in df.columns:
+        df["Average Rating"] = df["average_rating"] if "average_rating" in df.columns else np.nan
+
     # Numeric columns
     for col in ["My Rating", "Average Rating", "Number of Pages", "Year Published",
                  "Original Publication Year", "Read Count", "Owned Copies"]:
@@ -242,14 +249,18 @@ def reading_streak(df: pd.DataFrame) -> dict:
         return {"current": 0, "longest": 0}
 
     longest = 1
-    current = 1
+    run = 1
     for i in range(1, len(months)):
         if months[i] == months[i - 1] + 1:
-            current += 1
-            longest = max(longest, current)
+            run += 1
+            longest = max(longest, run)
         else:
-            current = 1
+            run = 1
 
+    # The last run only counts as current if it reaches this month or last
+    # month; a run that ended in 2023 is not a streak you are on.
+    this_month = pd.Timestamp.now().to_period("M")
+    current = run if months[-1] >= this_month - 1 else 0
     return {"current": current, "longest": longest}
 
 
@@ -277,10 +288,13 @@ def _clean_genre_label(label: str) -> str:
         "Graphic Novels": "Graphic Novel",
         "Hist Fiction": "Historical Fiction",
         "Lit Fic": "Literary Fiction",
+        "Lit Rpg": "Litrpg",
+        "Litrpg": "LitRPG",
     }
     # Replace hyphens with spaces, title-case
     label = label.replace("-", " ").strip().title()
-    # Apply merge mappings
+    # Apply merge mappings (twice, so "Lit Rpg" -> "Litrpg" -> "LitRPG")
+    label = _GENRE_MERGES.get(label, label)
     return _GENRE_MERGES.get(label, label)
 
 
@@ -292,8 +306,54 @@ _GENRE_SKIP = {
     "book club", "bookclub", "borrowed", "wish list", "wishlist",
     "paperback", "hardcover", "series", "novels", "books",
     "fiction", "nonfiction",  # too generic on their own
+    "kindle unlimited", "audible", "audio books", "e book", "adult", "adult fiction",
+    "dnf", "did not finish", "abandoned", "favourites", "re read", "reread",
     "",
 }
+
+# A genre counts for a book only if at least this share of the votes of the
+# book's top genre went to it, so one stray "Romance" shelf on a war novel
+# doesn't make it a romance.
+GENRE_MIN_SHARE = 0.10
+
+
+def parse_enhanced_genres(value) -> list:
+    """Genres of one book from the enhanced export's ``genres`` cell.
+
+    The cell is ``name[,synonym...]|votes`` entries joined by ``;``, most
+    votes first, e.g. ``Fantasy|311;Cultivation|98``. Returns cleaned genre
+    names, top first, without duplicates, shelf names that aren't genres, or
+    genres below GENRE_MIN_SHARE of the top genre's votes.
+    """
+    if value is None or (isinstance(value, float) and np.isnan(value)):
+        return []
+    entries = []
+    for entry in str(value).split(";"):
+        entry = entry.strip()
+        if not entry:
+            continue
+        names, sep, votes = entry.rpartition("|")
+        if not sep:                      # no vote count recorded
+            names, votes = entry, ""
+        votes = int(votes) if votes.strip().isdigit() else 0
+        entries.append((names.split(",")[0], votes))
+    top = max((v for _, v in entries), default=0)
+    out = []
+    for name, votes in entries:
+        if top and votes < GENRE_MIN_SHARE * top:
+            continue
+        g = _clean_genre_label(name)
+        if g and len(g) > 1 and g.lower() not in _GENRE_SKIP and g not in out:
+            out.append(g)
+    return out
+
+
+def primary_genre(df: pd.DataFrame) -> pd.Series:
+    """Each read book's top genre (enhanced export only), else NaN."""
+    read = _read_books(df)
+    if "genres" not in read.columns:
+        return pd.Series(np.nan, index=read.index)
+    return read["genres"].apply(lambda v: (parse_enhanced_genres(v) or [np.nan])[0])
 
 
 def genre_breakdown(df: pd.DataFrame) -> pd.DataFrame:
@@ -305,13 +365,9 @@ def genre_breakdown(df: pd.DataFrame) -> pd.DataFrame:
     if "genres" in read.columns:
         genre_counts = {}
         for val in read["genres"].dropna():
-            # Handle multiple delimiters: semicolons, pipes, commas
-            import re
-            parts = re.split(r'[;|,]', str(val))
-            for g in parts:
-                g = _clean_genre_label(g)
-                if g and len(g) > 1 and g.lower() not in _GENRE_SKIP:
-                    genre_counts[g] = genre_counts.get(g, 0) + 1
+            # one count per book per genre; vote counts are not genres
+            for g in parse_enhanced_genres(val):
+                genre_counts[g] = genre_counts.get(g, 0) + 1
         if genre_counts:
             result = pd.DataFrame(list(genre_counts.items()), columns=["Genre", "Count"])
             return result.sort_values("Count", ascending=False).head(30)

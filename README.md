@@ -85,8 +85,32 @@ The original deep-dive analysis notebook is also included for those who want to 
 | | |
 |---|---|
 | ![Animated Genre Race](img/top_genres_pages.gif) | ![Book Titles Word Cloud](img/book-titles-word-cloud.png) |
-| ![Review Length vs Rating](img/review-length-vs-rating.png) | ![Genre Ratings](img/genre-ratings.png) |
 | ![Reading by Week](img/reading-by-week.png) | ![Genre Word Cloud](img/genre-word-cloud.png) |
+
+### Charts That Show Their Uncertainty
+
+`scripts/make_figures.py` draws five charts from an export (enhanced with [Enhance-GoodReads-Export](https://github.com/DrKenReid/Enhance-GoodReads-Export) for the genre and average-rating ones), each answering one question and showing how sure the answer is:
+
+```bash
+python scripts/make_figures.py my_enhanced_export.csv figures/
+```
+
+| Chart | Question |
+|---|---|
+| `rating_distribution.png` | How do my stars fall? |
+| `review_length.png` | Do I write more about books I rate lower? Medians with 95% intervals, and Spearman's ρ with its interval |
+| `vs_community.png` | Do the books I rate higher also rate higher on Goodreads? |
+| `genre_ratings.png` | Which genres do I rate higher? Only genres with 15+ books; fewer and the interval says nothing |
+| `books_per_year.png` | How many books a year, re-reads included |
+
+Every interval is a 95% percentile bootstrap (`src/inference.py`), every point is labelled with the number of books behind it, and nothing is a fitted curve: a degree-5 polynomial through 600 star ratings will always find a shape, and it means nothing. The script prints the numbers behind each chart, so a caption can quote them.
+
+| | |
+|---|---|
+| ![Goodreads average of the books I gave each star](img/figures/vs_community.png) | ![My mean rating by genre, with 95% intervals](img/figures/genre_ratings.png) |
+| ![Median review length at each star, with 95% intervals](img/figures/review_length.png) | ![Books finished each year, re-reads included](img/figures/books_per_year.png) |
+
+`scripts/site_summary.py` writes the same figures as a small JSON snapshot for [the Reading Stats on my website](https://www.kenreid.co.uk/literature.html#stats).
 
 ### A Note on Predictions
 

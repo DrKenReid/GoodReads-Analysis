@@ -405,3 +405,67 @@ class TestDemoData:
         title, emoji, desc = reading_personality(stats, cleaned)
         assert stats["total_books"] > 0
         assert isinstance(title, str)
+
+
+# ── Enhanced export, missing columns, streaks ──────────────────────────────
+
+from src.analytics import parse_enhanced_genres, primary_genre
+
+
+class TestEnhancedGenres:
+    def test_vote_counts_are_not_genres(self):
+        assert parse_enhanced_genres("Fantasy|311;Cultivation|98") == ["Fantasy", "Cultivation"]
+
+    def test_synonyms_count_once(self):
+        assert parse_enhanced_genres("Fiction,Literary Fiction|900;Classics|400") == ["Classics"]
+
+    def test_small_shares_and_shelf_names_dropped(self):
+        got = parse_enhanced_genres("Fantasy|300;Kindle Unlimited|200;Audible|150;Romance|5")
+        assert got == ["Fantasy"]
+
+    def test_lit_rpg_spellings_merge(self):
+        assert parse_enhanced_genres("Litrpg|90;Lit Rpg|60") == ["LitRPG"]
+
+    def test_empty_and_missing(self):
+        assert parse_enhanced_genres("") == []
+        assert parse_enhanced_genres(float("nan")) == []
+
+    def test_genre_breakdown_counts_books_not_tokens(self):
+        df = _make_df(n=3)
+        df["genres"] = ["Fantasy|311;Cultivation|98", "Fantasy|40", "Horror|50;Fantasy|30"]
+        g = genre_breakdown(load_and_clean(df)).set_index("Genre")["Count"]
+        assert g["Fantasy"] == 3 and g["Horror"] == 1
+        assert not any(str(x).isdigit() for x in g.index)
+
+    def test_primary_genre_is_top_valid_genre(self):
+        df = _make_df(n=2)
+        df["genres"] = ["Audible|500;Fantasy|400", "Horror|50"]
+        assert primary_genre(load_and_clean(df)).tolist() == ["Fantasy", "Horror"]
+
+
+class TestMissingAverageRating:
+    def test_new_export_without_average_rating_does_not_crash(self):
+        df = _make_df(n=5).drop(columns=["Average Rating"])
+        cleaned = load_and_clean(df)
+        assert rating_analysis(cleaned) == {"has_data": False}
+        assert books_you_loved(cleaned).empty
+        assert books_you_hated(cleaned).empty
+
+    def test_enhanced_average_rating_is_used(self):
+        df = _make_df(n=4, ratings=[5, 4, 3, 2]).drop(columns=["Average Rating"])
+        df["average_rating"] = ["4.1", "3.9", "4.0", "3.5"]
+        result = rating_analysis(load_and_clean(df))
+        assert result["has_data"] and result["avg_community"] == pytest.approx(3.88, abs=0.01)
+
+
+class TestReadingStreak:
+    def test_old_run_is_not_current(self):
+        dates = ["2020/01/10", "2020/02/10", "2020/03/10"]
+        streak = reading_streak(load_and_clean(_make_df(n=3, dates_read=dates)))
+        assert streak == {"current": 0, "longest": 3}
+
+    def test_run_reaching_this_month_is_current(self):
+        now = pd.Timestamp.now()
+        dates = [(now - pd.DateOffset(months=k)).strftime("%Y/%m/%d") for k in (2, 1, 0)]
+        streak = reading_streak(load_and_clean(_make_df(n=3, dates_read=dates)))
+        assert streak["current"] == 3

@@ -7,4 +7,4 @@ test:
 	pytest tests/ -v
 
 lint:
-	python -m py_compile app.py src/analytics.py src/charts.py
+	python -m py_compile app.py src/analytics.py src/charts.py src/inference.py scripts/make_figures.py scripts/site_summary.py
